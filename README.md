@@ -14,7 +14,7 @@ This repository contains the code of the paper titled ["GLEN: General-Purpose Ev
 Each data file in ./data/data_split is in json format, which contain a list of data instances. The following examples include a training instance and a annotated test instance.
 ```json
 { 
-    "id": "propbank_15251", // A unique string ID for each sentence
+    "id": "propbank_15251", # A unique string ID for each sentence
     "document": "propbank_15251", // The source document of the sentence
     "s_id": 0, // The sentence order in the source document
     "domain": "propbank", // The source domain
