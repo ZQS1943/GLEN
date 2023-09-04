@@ -12,7 +12,7 @@ This repository contains the code of the paper titled ["GLEN: General-Purpose Ev
 
 ### Data Format
 Each data file in ./data/data_split is in json format, which contain a list of data instances. The following examples include a training instance and a annotated test instance.
-```JavaScript
+```json5
 { 
     "id": "propbank_15251", // A unique string ID for each sentence
     "document": "propbank_15251", // The source document of the sentence
