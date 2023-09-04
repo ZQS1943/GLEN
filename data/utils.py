@@ -8,7 +8,7 @@ with open('./data/roleset_to_nodes_detail.json', 'r') as f:
 
 
 
-with open('./data/xpo_final_version.json', 'r') as f:
+with open('./data/xpo_glen.json', 'r') as f:
     xpo = json.load(f)
 
 

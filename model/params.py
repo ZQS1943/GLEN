@@ -21,7 +21,7 @@ with open('./tmp_roleset_ids.txt', 'w') as f:
     for i in range(len(id2roleset)):
         f.write(f'{i}: {id2roleset[i]}\n')
 
-with open('./data/xpo_final_version.json', 'r') as f:
+with open('./data/xpo_glen.json', 'r') as f:
     xpo = json.load(f)
 xpo_used = [0]
 for node in xpo:

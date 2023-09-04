@@ -234,7 +234,7 @@ if __name__=='__main__':
 
     # include other type
     # for stage in ['train', 'dev', 'test']:
-    #     with open(f'./data/data_split_final/{stage}.json', 'r') as f:
+    #     with open(f'./data/data_split/{stage}.json', 'r') as f:
     #         data = json.load(f)
     #     processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = False, no_other = False)
     #     with open(f'./data/tokenized_final/{stage}.jsonl', 'w') as f:
@@ -242,7 +242,7 @@ if __name__=='__main__':
     #             f.write(json.dumps(item) + '\n')
 
     # for stage in ['annotated_dev_set', 'annotated_test_set']:
-    #     with open(f'./data/data_split_final/{stage}.json', 'r') as f:
+    #     with open(f'./data/data_split/{stage}.json', 'r') as f:
     #         data = json.load(f)
     #     processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = True, no_other = False)
     #     with open(f'./data/tokenized_final/{stage}.jsonl', 'w') as f:
@@ -252,7 +252,7 @@ if __name__=='__main__':
     # exclude other type
 
     for stage in ['annotated_test_set', 'annotated_dev_set']:
-        with open(f'./data/data_split_final/{stage}.json', 'r') as f:
+        with open(f'./data/data_split/{stage}.json', 'r') as f:
             data = json.load(f)
         processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = True, no_other = True)
         with open(f'./data/tokenized_final_no_other/{stage}.jsonl', 'w') as f:
@@ -260,7 +260,7 @@ if __name__=='__main__':
                 f.write(json.dumps(item) + '\n')
 
     for stage in ['train', 'dev', 'test']:
-        with open(f'./data/data_split_final/{stage}.json', 'r') as f:
+        with open(f'./data/data_split/{stage}.json', 'r') as f:
             data = json.load(f)
         processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = False, no_other = True)
         with open(f'./data/tokenized_final_no_other/{stage}.jsonl', 'w') as f:
