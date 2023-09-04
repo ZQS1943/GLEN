@@ -6,13 +6,17 @@ from nltk.tokenize import word_tokenize
 from tqdm import tqdm
 import torch
 from collections import defaultdict
+import os
 import random
-from utils import node_to_id, xpo, mapping_dict_detail
 random.seed(42)
-# from ..model.params import ENT_TITLE_TAG, EVENT_TAG
 
 EVENT_TAG = "[unused1]"
 ENT_TITLE_TAG = "[unused2]"
+
+with open('./data/xpo_glen.json', 'r') as f:
+    xpo = json.load(f)
+node_to_id = {x:i + 1 for i, x in enumerate(xpo)}
+id_to_node = {i + 1:x for i, x in enumerate(xpo)}
 
 def process_one_data(item, mapping_dict, xpo_nodes, tokenizer1, tokenizer2, relation_dict = None, labeled=False, no_other=False):
     data =  {
@@ -138,8 +142,9 @@ def split_and_save(data):
     write_data('dev', data[floor(l*0.9):])
 
 
-def get_node_tokenized_ids(xpo, max_seq_length=64, with_event_tag=False, output_file = './data/node_tokenized_ids_<max_seq_length>.pt'):
+def get_node_tokenized_ids(xpo, max_seq_length=64, with_event_tag = False, output_file = None):
     output_file = output_file.replace('<max_seq_length>', str(max_seq_length))
+    
     # get tokenized ids for the candidate xpo nodes
     cand_node_tokenized_ids = {}
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -179,12 +184,6 @@ def get_node_tokenized_ids(xpo, max_seq_length=64, with_event_tag=False, output_
         assert len(input_ids) == max_seq_length
 
         cand_node_tokenized_ids[i + 1] = input_ids
-
-    
-        # print(cand_tokens)
-        # print(input_ids)
-    # print(max_l)
-    # print(cand_node_tokenized_ids)
     
     torch.save(cand_node_tokenized_ids, output_file)
 
@@ -193,15 +192,10 @@ def get_node_tokenized_ids(xpo, max_seq_length=64, with_event_tag=False, output_
 def get_node_relations(xpo):
     wd_node_2_xpo_node = {xpo[node]['wd_node']:node for node in xpo}
     node_2_node_id = {node:i+1 for i, node in enumerate(xpo)}
-    # print(wd_node_2_xpo_node)
 
     relation_dict = defaultdict(set)
 
     for node in xpo:
-        relation_list = []
-        # print(xpo[node])
-        
-        # assert 1==0
         if 'overlay_parents' in xpo[node]:
             for parent in xpo[node]['overlay_parents']:
                 if parent['wd_node'] not in wd_node_2_xpo_node:
@@ -223,38 +217,47 @@ def get_node_relations(xpo):
         
     return relation_dict
 
+def get_node_id():
+    roleset2nodes = defaultdict(set)
+    for node in xpo:
+        for roleset in xpo[node]['pb_roleset']:
+            roleset2nodes[roleset].add(node)
+
+    roleset2nodes_detail = {}
+    for roleset in roleset2nodes:
+        nodes_list = []
+        for node in roleset2nodes[roleset]:
+            nodes_list.append({
+                'node_code': node,
+                'node_name': xpo[node]['name'],
+                'node_id': node_to_id[node],
+                'node_description': xpo[node]['wd_description']
+            })
+        roleset2nodes_detail[roleset] = nodes_list
+    return roleset2nodes_detail
 
 if __name__=='__main__':
+    print("Data preprocessing...")
 
-    get_node_tokenized_ids(xpo)
-    get_node_tokenized_ids(xpo, with_event_tag=True, output_file='./data/node_tokenized_ids_<max_seq_length>_with_event_tag.pt')
+    if not os.path.exists("./data_preprocessed"):
+        os.makedirs("./data_preprocessed")
+        print("Created: data_preprocessed")
+
+    # get dict: roleset -> xpo node list
+    roleset2nodes_detail = get_node_id() 
+
+    # get tokenized ids for each even node
+    get_node_tokenized_ids(xpo, with_event_tag=False, output_file = './data_preprocessed/node_tokenized_ids_<max_seq_length>.pt')
+    get_node_tokenized_ids(xpo, with_event_tag=True, output_file='./data_preprocessed/node_tokenized_ids_<max_seq_length>_with_event_tag.pt')
+    print("Toeknized: event nodes")
 
     relation_dict = get_node_relations(xpo)
 
-
-    # include other type
-    # for stage in ['train', 'dev', 'test']:
-    #     with open(f'./data/data_split/{stage}.json', 'r') as f:
-    #         data = json.load(f)
-    #     processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = False, no_other = False)
-    #     with open(f'./data/tokenized_final/{stage}.jsonl', 'w') as f:
-    #         for item in processed_data:
-    #             f.write(json.dumps(item) + '\n')
-
-    # for stage in ['annotated_dev_set', 'annotated_test_set']:
-    #     with open(f'./data/data_split/{stage}.json', 'r') as f:
-    #         data = json.load(f)
-    #     processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = True, no_other = False)
-    #     with open(f'./data/tokenized_final/{stage}.jsonl', 'w') as f:
-    #         for item in processed_data:
-    #             f.write(json.dumps(item) + '\n')
-
-    # exclude other type
-
+    # 
     for stage in ['annotated_test_set', 'annotated_dev_set']:
         with open(f'./data/data_split/{stage}.json', 'r') as f:
             data = json.load(f)
-        processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = True, no_other = True)
+        processed_data = preprocess(data, roleset2nodes_detail, xpo, relation_dict=relation_dict, labeled = True, no_other = True)
         with open(f'./data/tokenized_final_no_other/{stage}.jsonl', 'w') as f:
             for item in processed_data:
                 f.write(json.dumps(item) + '\n')
@@ -262,7 +265,7 @@ if __name__=='__main__':
     for stage in ['train', 'dev', 'test']:
         with open(f'./data/data_split/{stage}.json', 'r') as f:
             data = json.load(f)
-        processed_data = preprocess(data, mapping_dict_detail, xpo, relation_dict=relation_dict, labeled = False, no_other = True)
+        processed_data = preprocess(data, roleset2nodes_detail, xpo, relation_dict=relation_dict, labeled = False, no_other = True)
         with open(f'./data/tokenized_final_no_other/{stage}.jsonl', 'w') as f:
             for item in processed_data:
                 f.write(json.dumps(item) + '\n')

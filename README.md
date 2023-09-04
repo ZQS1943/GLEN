@@ -10,6 +10,14 @@ This repository contains the code of the paper titled ["GLEN: General-Purpose Ev
   - utils.py
   - xpo_glen.json
 
+### Data Format
+Each data file in ./data/data_split is in json format, which contain a list of data instances. The following examples include a training instance and a annotated test instance.
+```json
+{
+
+}
+```
+
 
 ## Model
 
