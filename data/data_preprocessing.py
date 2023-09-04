@@ -239,16 +239,16 @@ def get_node_id():
 if __name__=='__main__':
     print("Data preprocessing...")
 
-    if not os.path.exists("./data_preprocessed"):
-        os.makedirs("./data_preprocessed")
+    if not os.path.exists("./data/data_preprocessed"):
+        os.makedirs("./data/data_preprocessed")
         print("Created: data_preprocessed")
 
     # get dict: roleset -> xpo node list
     roleset2nodes_detail = get_node_id() 
 
     # get tokenized ids for each even node
-    get_node_tokenized_ids(xpo, with_event_tag=False, output_file = './data_preprocessed/node_tokenized_ids_<max_seq_length>.pt')
-    get_node_tokenized_ids(xpo, with_event_tag=True, output_file='./data_preprocessed/node_tokenized_ids_<max_seq_length>_with_event_tag.pt')
+    get_node_tokenized_ids(xpo, with_event_tag=False, output_file = './data/data_preprocessed/node_tokenized_ids_<max_seq_length>.pt')
+    get_node_tokenized_ids(xpo, with_event_tag=True, output_file='./data/data_preprocessed/node_tokenized_ids_<max_seq_length>_with_event_tag.pt')
     print("Toeknized: event nodes")
 
     relation_dict = get_node_relations(xpo)

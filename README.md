@@ -13,8 +13,25 @@ This repository contains the code of the paper titled ["GLEN: General-Purpose Ev
 ### Data Format
 Each data file in ./data/data_split is in json format, which contain a list of data instances. The following examples include a training instance and a annotated test instance.
 ```json
-{
-
+{ 
+    'id': 'propbank_15251', // A unique string ID for each sentence
+    'document': 'propbank_15251', // The source document of the sentence
+    's_id': 0, // The sentence order in the source document
+    'domain': 'propbank', // The source domain
+    'sentence': 'he had worked with mr. mcdonough on an earlier project and recruited him as architect for the trade center .', // Raw text of the sentence
+    'events': [ // A list of events
+        {
+            'trigger': ['worked'], // A list of words from the sentence
+            'offset': [2], // A list of offsets for each trigger word
+            'pb_roleset': 'work.01' // The PropBank roleset of the event
+        }, 
+        {
+            'trigger': ['recruited'], 
+            'offset': [11], 
+            'pb_roleset': 'recruit.01'
+        }
+    ],
+    'merged_from': 'propbank_15251&ontonotes/nw/wsj/14/wsj_1455_58' // An optional attribute used when the instance is merged from two different sources containing the same sentence
 }
 ```
 
