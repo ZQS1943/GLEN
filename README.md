@@ -1,29 +1,41 @@
 # GLEN: General-Purpose Event Detection
+- [GLEN: General-Purpose Event Detection](#glen-general-purpose-event-detection)
+  - [Overview](#overview)
+  - [Introduction](#introduction)
+    - [Data](#data)
+      - [Data Format](#data-format)
+    - [Model](#model)
+  - [Experiments](#experiments)
+    - [Setup](#setup)
+    - [Train](#train)
+    - [Predict](#predict)
+***
+## Overview
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
-
-## Data
+***
+## Introduction
+### Data
 - data
   - data_split
     - train.json
   - data_preprocessing.py
-  - get_node_id.py
-  - utils.py
   - xpo_glen.json
 
-### Data Format
-Each data file in ./data/data_split is in json format, which contain a list of data instances. The following examples include a training instance and a annotated test instance.
+#### Data Format
+Each data file in ./data/data_split is in json format, which contain a list of data instances. 
+- The following example shows a training instance.
 ```yaml
 { 
-    "id": "propbank_15251", # A unique string ID for each sentence
-    "document": "propbank_15251", # The source document of the sentence
-    "s_id": 0, # The sentence order in the source document
-    "domain": "propbank", # The source domain
-    "sentence": "he had worked with mr. mcdonough on an earlier project and recruited him as architect for the trade center .", # Raw text of the sentence
-    "events": [ # A list of events
+    "id": "propbank_15251", # A unique identifier for the sentence
+    "document": "propbank_15251", # Source document of the sentence
+    "s_id": 0, # Order of the sentence in the source document
+    "domain": "propbank", # Source domain
+    "sentence": "he had worked with mr. mcdonough on an earlier project and recruited him as architect for the trade center .", # The original sentence text
+    "events": [ # List of events in the sentence
         {
-            "trigger": ["worked"], # A list of words from the sentence
-            "offset": [2], # A list of offsets for each trigger word
-            "pb_roleset": "work.01" # The PropBank roleset of the event
+            "trigger": ["worked"], # Words in the sentence that trigger the event
+            "offset": [2], # Offset positions of the trigger words
+            "pb_roleset": "work.01" # The associated PropBank roleset for this event
         }, 
         {
             "trigger": ["recruited"], 
@@ -31,12 +43,46 @@ Each data file in ./data/data_split is in json format, which contain a list of d
             "pb_roleset": "recruit.01"
         }
     ],
-    "merged_from": "propbank_15251&ontonotes/nw/wsj/14/wsj_1455_58" # An optional attribute used when the instance is merged from two different sources containing the same sentence
+    "merged_from": "propbank_15251&ontonotes/nw/wsj/14/wsj_1455_58" # Optional attribute indicating merger of instances from different sources
 }
 ```
-
-
-## Model
+- The following example shows an annotated test instance.
+```yaml
+{
+    "id": "ontonotes/nw/wsj/10/wsj_1057_3", 
+    "document": "./propbank-release/data/ontonotes/nw/wsj/10/wsj_1057.gold_conll", 
+    "s_id": 3, 
+    "domain": "./propbank-release/data/ontonotes/nw", 
+    "sentence": "At that price , CBS was the only player at the table when negotiations with the International Olympic Committee started in Toronto Aug. 23 .", 
+    "events": [
+        {
+            "trigger": ["negotiations"], 
+            "offset": [13], 
+            "pb_roleset": "negotiate.01",
+            "candidate_nodes": ["DWD_Q3400581", "DWD_Q202875"], # List of event nodes mapping to the ProbBank roleset 
+            "annotation": [ # If multiple candidate nodes exist, annotators select the most suitable event type
+                {
+                    "label": "negotiation: dialogue between two or more people or parties intended to reach a beneficial outcome", # Selected label by the worker 
+                    "worker": "AVYIK8IPJ4865" # Worker's ID
+                }, 
+                {
+                    "label": "negotiation: dialogue between two or more people or parties intended to reach a beneficial outcome", 
+                    "worker": "AMRYNBWDDIVDE"
+                }
+            ],  
+            "xpo_label": "DWD_Q202875" # Annotation result
+        }, 
+        {
+            "trigger": ["started"], 
+            "offset": [19], 
+            "pb_roleset": "start.01", 
+            "candidate_nodes": ["DWD_Q28530236"], 
+            "xpo_label": "DWD_Q28530236"
+        }
+    ]
+}
+```
+### Model
 
 Our model comprises three components:
 - **Trigger Identification**: Identify potential triggers in the sentence
@@ -44,16 +90,15 @@ Our model comprises three components:
 - **Type Classification**: determine the best matching event type for each potential trigger
   
 ![Overview of the framework](asset/model.png) 
-
+***
 ## Experiments
 ### Setup
-- Install dependencies
-```
+```sh
+    git clone https://github.com/ZQS1943/GLEN.git
+    cd GLEN
     pip install -r requirements.txt
+    python3 ./data/data_preprocessing.py
 ```
-
-## Data Preprocessing
-
 
 ### Train
 To train the different components of GLEN model, use 
