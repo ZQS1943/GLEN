@@ -1,27 +1,17 @@
 # GLEN: General-Purpose Event Detection
 - [GLEN: General-Purpose Event Detection](#glen-general-purpose-event-detection)
   - [Overview](#overview)
-  - [Introduction](#introduction)
-    - [Data](#data)
-      - [Data Format](#data-format)
-    - [Model](#model)
+  - [Data Format](#data-format)
   - [Experiments](#experiments)
     - [Setup](#setup)
-    - [Train](#train)
+    - [Model Training](#model-training)
     - [Predict](#predict)
 ***
 ## Overview
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
 ***
-## Introduction
-### Data
-- data
-  - data_split
-    - train.json
-  - data_preprocessing.py
-  - xpo_glen.json
 
-#### Data Format
+## Data Format
 Each data file in ./data/data_split is in json format, which contain a list of data instances. 
 - The following example shows a training instance.
 ```yaml
@@ -82,14 +72,7 @@ Each data file in ./data/data_split is in json format, which contain a list of d
     ]
 }
 ```
-### Model
 
-Our model comprises three components:
-- **Trigger Identification**: Identify potential triggers in the sentence
-- **Type Ranking**: rank the top k possible event types for the sentence
-- **Type Classification**: determine the best matching event type for each potential trigger
-  
-![Overview of the framework](asset/model.png) 
 ***
 ## Experiments
 ### Setup
@@ -100,7 +83,17 @@ Our model comprises three components:
     python3 ./data/data_preprocessing.py
 ```
 
-### Train
+### Model Training
+
+Our model comprises three components:
+- **Trigger Identification**: Identify potential triggers in the sentence
+- **Type Ranking**: rank the top k possible event types for the sentence
+- **Type Classification**: determine the best matching event type for each potential trigger
+  
+![Overview of the framework](asset/model.png)
+
+To train our model
+
 To train the different components of GLEN model, use 
 ```sh
 bash scripts/run_trigger_detector.sh train ./data/tokenized_final_no_other 128 64 16 False wo_other_new_ontology
