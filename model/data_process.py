@@ -267,7 +267,7 @@ def process_mention_data(
     return processed_samples
 
 
-def process_data_TC_w_sentence(
+def process_data_TC_predict_w_sentence(
     samples,
     tokenizer,
     max_context_length,
@@ -309,12 +309,33 @@ def process_data_TC_w_sentence(
     print(f"get {len(processed_samples)} samples")
     return processed_samples
 
-def process_data_TC_w_token_id(params, train_samples, id2node_detail, tokenizer):
-    max_context_length = params['max_context_length']
-
+def create_TC_input(id2node_detail, node, item, trigger, tokenizer, max_context_length):
     prefix_template = f"⟨type⟩ is defined as ⟨definition⟩."
     suffix_template = f"Does ⟨trigger⟩ indicate a ⟨type⟩ event? [MASK]"
 
+    name, des, _ = id2node_detail[node]
+    if des is None:
+        des = ''
+    trigger_words = ' '.join(item['context']['tokens'][trigger[0]:trigger[1] + 1]).replace(' ##', '')
+
+    prefix = prefix_template.replace('⟨type⟩', name).replace('⟨definition⟩', des)
+    suffix = suffix_template.replace('⟨trigger⟩', trigger_words).replace('⟨type⟩', name)
+    prefix_id = tokenizer.encode(prefix)
+    suffix_id = tokenizer.encode(suffix)
+
+    input_ids = prefix_id + item['context']['original_input'] + suffix_id
+    mask_token_id = len(input_ids)
+    if len(input_ids) > max_context_length - 2:
+        print(input_ids)
+        print(f"exceed the max length of {max_context_length}, skip this case")
+        return None, None
+    input_ids = [101] + input_ids + [102] + [0]*(max_context_length - 2 - len(input_ids))
+    assert len(input_ids) == max_context_length
+    mask_token_mask = [0]*max_context_length
+    mask_token_mask[mask_token_id] = 1
+    return input_ids, mask_token_mask
+
+def process_data_TC_train(params, train_samples, id2node_detail, tokenizer):
     cnt_events = 0
     cnt_one_cand = 0
     cnt_predicted = 0
@@ -338,27 +359,11 @@ def process_data_TC_w_token_id(params, train_samples, id2node_detail, tokenizer)
                 label = 0
                 if node == gt_node:
                     label = 1
-                name, des, _ = id2node_detail[node]
-                if des is None:
-                    des = ''
-
-                trigger_words = ' '.join(item['context']['tokens'][trigger[0]:trigger[1] + 1]).replace(' ##', '')
-
-                prefix = prefix_template.replace('⟨type⟩', name).replace('⟨definition⟩', des)
-                suffix = suffix_template.replace('⟨trigger⟩', trigger_words).replace('⟨type⟩', name)
-                prefix_id = tokenizer.encode(prefix)
-                suffix_id = tokenizer.encode(suffix)
-
-                input_ids = prefix_id + item['context']['original_input'] + suffix_id
-                mask_token_id = len(input_ids)
-                if len(input_ids) > max_context_length - 2:
-                    print(input_ids)
-                    print(f"exceed the max length of {max_context_length}, skip this case")
+                
+                input_ids, mask_token_mask = create_TC_input(id2node_detail, node, item, trigger, tokenizer, params['max_context_length'])
+                if input_ids is None:
                     continue
-                input_ids = [101] + input_ids + [102] + [0]*(max_context_length - 2 - len(input_ids))
-                assert len(input_ids) == max_context_length
-                mask_token_mask = [0]*max_context_length
-                mask_token_mask[mask_token_id] = 1
+                
                 processed_samples.append({
                     'id': item['data_id'],
                     'event_idx': eid,
@@ -369,3 +374,31 @@ def process_data_TC_w_token_id(params, train_samples, id2node_detail, tokenizer)
                 })
     print(f"get {len(processed_samples)} training data (one candidated: {cnt_one_cand} + predicted: {cnt_predicted}) from {cnt_events} events")
     return processed_samples
+
+def process_data_TC_predict_w_token_ids(params, train_samples, id2node_detail, tokenizer):
+    cnt_events = 0
+    events_list = []
+    processed_samples = []
+    for item in tqdm(train_samples):
+        for eid, (trigger, candidate_set) in enumerate(zip(item['context']['mention_idxs'], item['label_idx'])):
+            if len(candidate_set) <= 1:
+                # only predict cases with multiple candidates
+                continue
+            cnt_events += 1
+            events_list.append((item['data_id'], eid))
+            for node in candidate_set:
+                input_ids, mask_token_mask = create_TC_input(id2node_detail, node, item, trigger, tokenizer, params['max_context_length'])
+                if input_ids is None:
+                    continue
+
+                processed_samples.append({
+                    'id': item['data_id'],
+                    'event_idx': eid,
+                    'event_id': node,
+                    'input_ids': input_ids,
+                    'label': -1,
+                    'mask_token_mask':mask_token_mask
+                })
+    print(f"get {len(processed_samples)} training data from {cnt_events} events")
+    return processed_samples
+

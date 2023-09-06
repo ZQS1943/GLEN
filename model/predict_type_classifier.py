@@ -99,14 +99,15 @@ def predict_train_set(type_classifier, test_dataloader, device, params, events_l
 def get_train_dataloder(params):
     with open(params['TC_train_data_path'], 'r') as f:
         train_samples = json.load(f)
-    if params['data_truncation'] != -1:
-        train_samples = train_samples[:params['data_truncation']]
-    processed_train_samples = []
-    events_list = []
+    
     max_context_length = params['max_context_length']
+
     prefix_template = f"⟨type⟩ is defined as ⟨definition⟩."
     suffix_template = f"Does ⟨trigger⟩ indicate a ⟨type⟩ event? [MASK]"
+
     cnt_events = 0
+    events_list = []
+    processed_train_samples = []
     for item in tqdm(train_samples):
         for eid, (trigger, candidate_set) in enumerate(zip(item['context']['mention_idxs'], item['label_idx'])):
             if len(candidate_set) <= 1:
@@ -254,6 +255,8 @@ if __name__ == "__main__":
     eval_batch_size = params["eval_batch_size"]
 
     if params['predict_set'] == 'train_set':
+        with open(params['TC_train_data_path'], 'r') as f:
+            train_samples = json.load(f)
         predict_dataloder, events_list = get_train_dataloder(params)
         predict_train_set(type_classifier, predict_dataloder, device, params, events_list)
 

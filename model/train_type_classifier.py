@@ -15,7 +15,7 @@ from model.utils import read_dataset, write_to_file, save_model
 from model.constants import id2node_detail
 from model.encoder import TypeClassifier
 from model.dataset import TCdataset, collate_fn_TC
-from model.data_process import process_data_TC_w_token_id
+from model.data_process import process_data_TC_train
 
 def training(params):
     print("-- Type Classifier: Train --")
@@ -41,7 +41,7 @@ def training(params):
     if params['data_truncation'] != -1:
         train_samples = train_samples[:params['data_truncation']]
     
-    processed_train_samples = process_data_TC_w_token_id(params, train_samples, id2node_detail, tokenizer)
+    processed_train_samples = process_data_TC_train(params, train_samples, id2node_detail, tokenizer)
 
     
     grad_acc_steps = params["gradient_accumulation_steps"]
