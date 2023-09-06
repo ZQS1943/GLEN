@@ -107,6 +107,9 @@ bash scripts/predict_type_ranking.sh train_set
 For training the Type Classification model, we adopt an incremental self-labeling procedure to handle the partial labels. Please refer to Section 3.3 of the paper for more details. To train a base classifier, use
 ```sh
 bash scripts/train_type_classifier.sh 0 ./exp/type_ranking/epoch_4/type_ranking_results_of_train_set_with_top_20_events.json
+# param1: the model number 
+# param2: the path to the training data
 ```
+
 
 ### Predict
