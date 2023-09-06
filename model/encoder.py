@@ -555,22 +555,6 @@ class TypeClassification(torch.nn.Module):
         # self.model.upgrade_state_dict_named(state_dict)
         self.load_state_dict(state_dict)
 
-    def forward_new_loss(
-        self, input_ids, mask_token_mask, 
-        cand_mask=None, 
-        return_loss=True
-    ):
-        token_embed = self.model(input_ids)[0]
-        mask_token_embed = token_embed[mask_token_mask]
-        yes_no_scores = torch.index_select(mask_token_embed, dim=1, index=torch.tensor([self.yes_id, self.no_id]).to(self.device))
-        yes_no_scores = F.softmax(yes_no_scores, dim=-1)
-        yes_scores = yes_no_scores[:,0]
-
-        if return_loss:
-            loss = loss_for_type_classification(yes_scores, cand_mask, self.device)
-            return yes_scores, loss
-        return yes_scores, 0
-
     def forward(self, input_ids, mask_token_mask, labels = None,return_loss=True):
         token_embed = self.model(input_ids)[0]
         mask_token_embed = token_embed[mask_token_mask]
@@ -805,16 +789,6 @@ class TypeRanking(torch.nn.Module):
         else:
             state_dict = torch.load(fname)
         self.load_state_dict(state_dict)
-        
-
-    # def save_model(self, output_dir):
-    #     if not os.path.exists(output_dir):
-    #         os.makedirs(output_dir)
-    #     model_to_save = get_model_obj(self.model) 
-    #     output_model_file = os.path.join(output_dir, WEIGHTS_NAME)
-    #     output_config_file = os.path.join(output_dir, CONFIG_NAME)
-    #     torch.save(model_to_save.state_dict(), output_model_file)
-    #     model_to_save.config.to_json_file(output_config_file)
 
 
     def event_type_encode(self, event_type_input):
@@ -854,18 +828,14 @@ class TypeRanking(torch.nn.Module):
         # print(et_embed.size(), s_embed.size())
         return (s_embed @ et_embed.permute(0, 1, 3, 2)).max(2).values.sum(2)
 
-    def forward_new_loss(
+    def forward(
         self, sentence_input, event_type_input,
         candidate_label_sets=None,
         negative_smaples=None,
         cand_encs=None,
-        return_loss=True,
     ):
         """
         """
-        # print(sentence_input, sentence_input.shape)
-        # print(event_type_input, event_type_input.shape)
-        # assert 1==0
         if cand_encs is None:
             scores = self.score(self.event_type_encode(event_type_input), self.sentence_encode(sentence_input))
             loss = loss_for_type_ranking(scores, candidate_label_sets, negative_smaples, self.device)
@@ -874,34 +844,6 @@ class TypeRanking(torch.nn.Module):
         else:
             scores = self.score(cand_encs, self.sentence_encode(sentence_input))
             return 0, scores
-
-    def forward(
-        self, sentence_input, event_type_input,
-        cand_encs=None,
-        label=None,
-        margin_label=None,
-        return_loss=True,
-    ):
-        """
-        """
-        if cand_encs is None:
-            scores = self.score(self.event_type_encode(event_type_input), self.sentence_encode(sentence_input))
-            # loss_function = nn.MSELoss()
-            # loss_function = nn.BCELoss()
-            # loss = loss_function(scores, label)
-
-            loss_function = nn.MultiLabelMarginLoss()
-            loss = loss_function(scores, margin_label)
-            # print(loss)
-            # assert 1==0
-
-            return loss, scores 
-        else:
-            scores = self.score(cand_encs, self.sentence_encode(sentence_input))
-            # scores = scores.sigmoid()
-            # print(scores, scores.size())
-            return 0, scores
-
 
 def to_bert_input(token_idx, null_idx):
     """

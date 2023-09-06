@@ -120,6 +120,19 @@ def define_arguments(parser):
         required=False,
         help="Filepath to the saved tokenized event descriptions.",
     )
+    parser.add_argument(
+        "--predict_set",
+        default="test_set",
+        type=str,
+        required=False,
+        help="Choose from train_set, dev_set, test_set",
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=20,
+        help="use the top k event types for each sentence",
+    )
         
 def parse_arguments():
     parser = argparse.ArgumentParser()

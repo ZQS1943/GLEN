@@ -92,15 +92,17 @@ Our model comprises three components:
   
 ![Overview of the framework](asset/model.png)
 
-To train the trigger identification model, use
+To train the Trigger Identification model, use
 ```sh
 bash scripts/train_trigger_identification.sh
 ```
-To train the type ranking model, use
+To train the Type Ranking model, use
 ```sh
 bash scripts/train_type_ranking.sh
 ```
-To train the different components of GLEN model, use 
-
+Before we train Type Classification, we need to get the top k event types for each sentence in the train set predicted by the trained Type Ranking model. To get this, use
+```sh
+bash scripts/predict_type_ranking.sh train_set
+```
 
 ### Predict
