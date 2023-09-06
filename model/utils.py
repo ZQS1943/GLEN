@@ -5,7 +5,7 @@ import torch
 from pytorch_transformers.modeling_utils import CONFIG_NAME, WEIGHTS_NAME
 from tqdm import tqdm
 from torch.utils.data import DataLoader,TensorDataset
-from data_process import process_mention_data, process_mention_data_TC
+from data_process import process_mention_data, process_data_TC_w_sentence
 from model.constants import xpo_used
 
 
@@ -101,7 +101,7 @@ def read_dataset(dataset_name, params, tokenizer, truncate = -1, has_true_label=
     # if 'debug' in params['output_path']:
     #     samples = samples[:100]
     if yes_no_format:
-        processed_data = process_mention_data_TC(
+        processed_data = process_data_TC_w_sentence(
             samples=samples,  # use subset of valid data
             tokenizer=tokenizer,
             max_context_length=params["max_context_length"],

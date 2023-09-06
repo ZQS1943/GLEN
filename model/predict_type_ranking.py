@@ -30,7 +30,7 @@ def predict_top_k(output_file, type_ranking, device, predict_dataloader, cand_en
             converted_indices = used_cand[top_k.indices]
             
             for idx, indices in zip(data_index, converted_indices):
-                predict_samples[idx][f'top_{k}_events'] = indices.tolist()
+                predict_samples[idx][f'top_events'] = indices.tolist()
 
     with open(output_file, 'w') as f:
         f.write(json.dumps(predict_samples))    

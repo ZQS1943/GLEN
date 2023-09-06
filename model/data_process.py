@@ -150,7 +150,6 @@ def process_mention_data(
     samples,
     tokenizer,
     max_context_length,
-    saved_context_dir=None,
     params=None,
     truncate=-1, 
     has_true_label = False,
@@ -160,10 +159,6 @@ def process_mention_data(
     Returns /inclusive/ bounds
     '''
     extra_ret_values = {}
-    if saved_context_dir is not None and os.path.exists(os.path.join(saved_context_dir, "tensor_tuple.pt")):
-        data = torch.load(os.path.join(saved_context_dir, "data.pt"))
-        tensor_data_tuple = torch.load(os.path.join(saved_context_dir, "tensor_tuple.pt"))
-        return data, tensor_data_tuple, extra_ret_values
 
     candidate_token_ids = torch.load(params["cand_token_ids_path"])
     extra_ret_values["candidate_token_ids"] = candidate_token_ids
@@ -272,33 +267,21 @@ def process_mention_data(
     return processed_samples
 
 
-def process_mention_data_TC(
+def process_data_TC_w_sentence(
     samples,
     tokenizer,
     max_context_length,
-    saved_context_dir=None,
 ):
-    '''
-    Returns /inclusive/ bounds
-    '''
-    extra_ret_values = {}
-    if saved_context_dir is not None and os.path.exists(os.path.join(saved_context_dir, "tensor_tuple.pt")):
-        data = torch.load(os.path.join(saved_context_dir, "data.pt"))
-        tensor_data_tuple = torch.load(os.path.join(saved_context_dir, "tensor_tuple.pt"))
-        return data, tensor_data_tuple, extra_ret_values
-
-    processed_samples = []
-
-    iter_ = tqdm(samples)
-    
     template = f"⟨type⟩ is defined as ⟨definition⟩. ⟨sentence⟩ Does ⟨trigger⟩ indicate a ⟨type⟩ event? [MASK]"
 
-    for idx, sample in enumerate(iter_):
+    processed_samples = []    
+    for sample in tqdm(samples):
         sen = sample['text']
         for eid, (mention, label_ids, label_titles, label_descriptions, true_label) in enumerate(zip(sample['mentions'], sample['label_ids'], sample['xpo_titles'], sample['label'], sample['true_label'])):
             sen_w_trg = sen
             trigger_word = sen[mention[0]:mention[1]]
             if len(label_ids) == 1:
+                # only predict cases with multiple candidate nodes
                 continue
             for l_id, l_title, l_des in zip(label_ids, label_titles, label_descriptions):
                 context = template.replace('⟨type⟩', l_title).replace('⟨definition⟩', l_des).replace('⟨sentence⟩', sen_w_trg).replace('⟨trigger⟩', trigger_word)
@@ -309,7 +292,8 @@ def process_mention_data_TC(
                     label = 1
                 if len(input_ids) > max_context_length - 2:
                     print(input_ids)
-                    assert 1==0
+                    print(f"exceed the max length of {max_context_length}, skip this case")
+                    continue
                 input_ids = [101] + input_ids + [102] + [0]*(max_context_length - 2 - len(input_ids))
                 assert len(input_ids) == max_context_length
                 mask_token_mask = [0]*max_context_length
@@ -322,11 +306,10 @@ def process_mention_data_TC(
                     'label': label,
                     'mask_token_mask':mask_token_mask
                 })
-
+    print(f"get {len(processed_samples)} samples")
     return processed_samples
 
-def process_data_TC(params, train_samples, id2node_detail, tokenizer):
-    processed_train_samples = []
+def process_data_TC_w_token_id(params, train_samples, id2node_detail, tokenizer):
     max_context_length = params['max_context_length']
 
     prefix_template = f"⟨type⟩ is defined as ⟨definition⟩."
@@ -335,6 +318,7 @@ def process_data_TC(params, train_samples, id2node_detail, tokenizer):
     cnt_events = 0
     cnt_one_cand = 0
     cnt_predicted = 0
+    processed_samples = []
     for item in tqdm(train_samples):
         for eid, (trigger, candidate_set) in enumerate(zip(item['context']['mention_idxs'], item['label_idx'])):
             if len(candidate_set) != 1:
@@ -347,33 +331,35 @@ def process_data_TC(params, train_samples, id2node_detail, tokenizer):
                 gt_node = candidate_set[0]
                 cnt_one_cand += 1
             cnt_events += 1
-            node_list = item['top_20_events'][:params['k']]
+            node_list = item['top_events'][:params['k']]
             if gt_node not in node_list:
                 node_list.append(gt_node)
-            # print(gt_node, node_list)
             for node in node_list:
                 label = 0
                 if node == gt_node:
                     label = 1
-                # print(node, id2node_detail[node])
                 name, des, _ = id2node_detail[node]
                 if des is None:
                     des = ''
+
                 trigger_words = ' '.join(item['context']['tokens'][trigger[0]:trigger[1] + 1]).replace(' ##', '')
+
                 prefix = prefix_template.replace('⟨type⟩', name).replace('⟨definition⟩', des)
                 suffix = suffix_template.replace('⟨trigger⟩', trigger_words).replace('⟨type⟩', name)
                 prefix_id = tokenizer.encode(prefix)
                 suffix_id = tokenizer.encode(suffix)
+
                 input_ids = prefix_id + item['context']['original_input'] + suffix_id
                 mask_token_id = len(input_ids)
                 if len(input_ids) > max_context_length - 2:
                     print(input_ids)
-                    assert 1==0
+                    print(f"exceed the max length of {max_context_length}, skip this case")
+                    continue
                 input_ids = [101] + input_ids + [102] + [0]*(max_context_length - 2 - len(input_ids))
                 assert len(input_ids) == max_context_length
                 mask_token_mask = [0]*max_context_length
                 mask_token_mask[mask_token_id] = 1
-                processed_train_samples.append({
+                processed_samples.append({
                     'id': item['data_id'],
                     'event_idx': eid,
                     'event_id': node,
@@ -381,5 +367,5 @@ def process_data_TC(params, train_samples, id2node_detail, tokenizer):
                     'label': label,
                     'mask_token_mask':mask_token_mask
                 })
-    print(f"get {len(processed_train_samples)} training data (one candidated: {cnt_one_cand} + predicted: {cnt_predicted}) from {cnt_events} events")
-    return processed_train_samples
+    print(f"get {len(processed_samples)} training data (one candidated: {cnt_one_cand} + predicted: {cnt_predicted}) from {cnt_events} events")
+    return processed_samples
