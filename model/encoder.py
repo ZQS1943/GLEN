@@ -535,25 +535,16 @@ class TypeClassification(torch.nn.Module):
         # init model
         self.model = BertForMaskedLM.from_pretrained(params["bert_model"])
         model_path = params.get("path_to_model", None)
-        print(model_path)
         if model_path is not None:
-            # assert 1==0
-            self.load_model(model_path)
+            print(f'load model from {model_path} ...')
+            self.load_state_dict(torch.load(model_path))
+
         self.model = self.model.to(self.device)
         self.data_parallel = params.get("data_parallel")
         if self.data_parallel:
             self.model = torch.nn.DataParallel(self.model)
 
         self.loss_fact = nn.BCELoss()
-        # self.loss_fact = nn.BCEWithLogitsLoss()
-    def load_model(self, fname, cpu=False):
-        if cpu or not torch.cuda.is_available():
-            state_dict = torch.load(fname, map_location=torch.device("cpu"))
-        else:
-            state_dict = torch.load(fname)
-        
-        # self.model.upgrade_state_dict_named(state_dict)
-        self.load_state_dict(state_dict)
 
     def forward(self, input_ids, mask_token_mask, labels = None,return_loss=True):
         token_embed = self.model(input_ids)[0]
@@ -584,29 +575,13 @@ class TriggerIdentifier(torch.nn.Module):
         self.build_model()
         model_path = params.get("path_to_model", None)
         if model_path is not None:
-            self.load_model(model_path)
+            print(f'load model from {model_path} ...')
+            self.load_state_dict(torch.load(model_path))
+
         self.model = self.model.to(self.device)
     
-    def load_model(self, fname, cpu=False):
-        if cpu or not torch.cuda.is_available():
-            state_dict = torch.load(fname, map_location=torch.device("cpu"))
-        else:
-            state_dict = torch.load(fname)
-        
-        # self.upgrade_state_dict_named(state_dict)
-        self.load_state_dict(state_dict)
-
     def build_model(self):
         self.model = EncoderModule(self.params)
-
-    def save_model(self, output_dir):
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        model_to_save = get_model_obj(self.model) 
-        output_model_file = os.path.join(output_dir, WEIGHTS_NAME)
-        output_config_file = os.path.join(output_dir, CONFIG_NAME)
-        torch.save(model_to_save.state_dict(), output_model_file)
-        model_to_save.config.to_json_file(output_config_file)
 
     def encode_context(
         self, cands, gold_mention_bounds=None, gold_mention_bounds_mask=None,
@@ -777,18 +752,11 @@ class TypeRanking(torch.nn.Module):
         model_path = params.get("path_to_model", None)
         self.linear = nn.Linear(params['hidden_size'], params['linear_dim'], bias=False)
         if model_path is not None:
-            self.load_model(model_path)
+            print(f'load model from {model_path} ...')
+            self.load_state_dict(torch.load(model_path))
 
         self.model = self.model.to(self.device)
         self.linear = self.linear.to(self.device)
-    
-    def load_model(self, fname, cpu=False):
-        print(f'load model from {fname}')
-        if cpu or not torch.cuda.is_available():
-            state_dict = torch.load(fname, map_location=torch.device("cpu"))
-        else:
-            state_dict = torch.load(fname)
-        self.load_state_dict(state_dict)
 
 
     def event_type_encode(self, event_type_input):

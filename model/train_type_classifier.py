@@ -29,7 +29,6 @@ def training(params):
     if not os.path.exists(model_output_path):
         os.makedirs(model_output_path)
     
-    
     # Init model
     type_classifier = TypeClassification(params)
     tokenizer = type_classifier.tokenizer
@@ -76,7 +75,7 @@ def training(params):
         type_classifier.train()
         pbar = tqdm(total=len(train_dataloader))
         for step, batch in enumerate(train_dataloader):
-            data_id,event_idx,event_id,input_ids,labels, mask_token_mask = batch
+            _,_,_,input_ids,labels, mask_token_mask = batch
             input_ids = input_ids.to(device)
             labels = labels.to(device)
             mask_token_mask = mask_token_mask.to(device)

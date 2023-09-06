@@ -104,5 +104,9 @@ Before we train Type Classification, we need to get the top k event types for ea
 ```sh
 bash scripts/predict_type_ranking.sh train_set
 ```
+Then, to train the Type Classification model, use
+```sh
+bash ./scripts/train_type_classifier.sh
+```
 
 ### Predict

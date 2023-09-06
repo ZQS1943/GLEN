@@ -107,27 +107,10 @@ def collate_fn_TR_Predict(batch):
 
 
 def collate_fn_TC(batch):
-    index = torch.tensor([x['index'] for x in batch], dtype=torch.long)
-    context_vecs = torch.tensor([x['context_vecs'] for x in batch], dtype=torch.long)
-
-    event_type_vecs = []
-    event_indexer = {}
-    for x in batch:
-        tmp_label = set()
-        for men_idx, mention in enumerate(x['label_idx']):
-            for et_idx, et in enumerate(mention):
-                if et not in event_indexer:
-                    event_indexer[et] = len(event_type_vecs)
-                    event_type_vecs.append(x['cand_vecs'][men_idx][et_idx])
-                tmp_label.add(event_indexer[et])
-
-    event_type_vecs = torch.tensor(event_type_vecs, dtype=torch.long)
-
-    label = torch.zeros(len(context_vecs), len(event_type_vecs))
-    for sen_id, x in enumerate(batch):
-        for label_idx, label_p in zip(x['label_idx'], x['label_probability']):
-            for l_idx, l_p in zip(label_idx, label_p):
-                label[sen_id][event_indexer[l_idx]] = l_p
-
-    true_label = [x['true_label'] for x in batch]
-    return (context_vecs, event_type_vecs, label, index, event_indexer, true_label)
+    data_id = [x['id'] for x in batch]
+    event_idx = [x['event_idx'] for x in batch]
+    event_id = [x['event_id'] for x in batch]
+    input_ids = torch.tensor([x['input_ids'] for x in batch], dtype=torch.long)
+    labels = torch.tensor([x['label'] for x in batch], dtype=torch.float)
+    mask_token_mask = torch.tensor([x['mask_token_mask'] for x in batch], dtype=torch.bool)
+    return data_id,event_idx,event_id,input_ids,labels, mask_token_mask
