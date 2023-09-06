@@ -115,6 +115,11 @@ bash scripts/train_type_classifier.sh 0 ./exp/type_ranking/epoch_4/type_ranking_
 # param1: the model number 
 # param2: the path to the training data
 ```
-After the base
+After the base classifier is trained, we use this model to self-label the train set.
+```sh
+bash scripts/predict_type_classifier.sh 0 train_set
+# param1: the model number
+# param2: the predicting data
+```
 
 ### Predict
