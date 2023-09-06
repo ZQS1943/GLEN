@@ -1,19 +1,65 @@
 import os
 import io
-import sys
 import json
 import torch
-import logging
-import numpy as np
-from collections import OrderedDict
 from pytorch_transformers.modeling_utils import CONFIG_NAME, WEIGHTS_NAME
 from tqdm import tqdm
 from torch.utils.data import DataLoader,TensorDataset
+from data_process import process_mention_data, process_mention_data_TC
+from model.constants import xpo_used
 
-from model.encoder import EncoderRanker
-from model.data_process import process_mention_data, process_mention_data_yes_no
-from model.params import xpo_used
-  
+
+def padding_with_multiple_dim(data, pad_idx=-1, dtype=torch.long):
+    tmp_data = data
+    max_length = [1]
+    max_length.append(max(len(x) for x in tmp_data))
+    def continue_walking(tmp_data):
+        for item in tmp_data:
+            if len(item) and isinstance(item[0], list):
+                return True
+        return False
+    while continue_walking(tmp_data):
+        tmp_tmp_data = []
+        for item in tmp_data:
+            tmp_tmp_data.extend(item)
+        tmp_data = tmp_tmp_data
+        max_length.append(max(len(x) for x in tmp_data))
+    # print(f"padding: {max_length}")
+
+    def padding(data, max_length):
+        padded_data = []
+        padding_mask = []
+        if len(max_length) > 1:
+            for item in data:
+                tmp_data, tmp_mask = padding(item, max_length[1:])
+                padded_data.append(tmp_data)
+                padding_mask.append(tmp_mask)
+            for _ in range(max_length[0] - len(data)):
+                tmp_data, tmp_mask = padding([], max_length[1:])
+                padded_data.append(tmp_data)
+                padding_mask.append(tmp_mask)
+        else:
+            if len(max_length) == 1 and pad_idx != -1:
+                if len(data):
+                    padded_data = data
+                    padding_mask = [1]
+                else:
+                    padded_data = pad_idx
+                    padding_mask = [0]
+            else:
+                padded_data = data + [pad_idx for _ in range(max_length[0] - len(data))]
+                padding_mask = [1 for _ in data] + [0 for _ in range(max_length[0] - len(data))]       
+        return padded_data, padding_mask
+            
+    padded_data, padding_mask = padding(data, max_length)
+    padded_data = torch.tensor(padded_data, dtype=dtype)
+    padding_mask = torch.tensor(padding_mask, dtype=torch.bool)
+    if pad_idx != -1:
+        padding_mask = padding_mask.squeeze(-1)
+    # print(padded_data.shape, padding_mask.shape)
+    return padded_data, padding_mask
+
+
 
 def encode_all_candidates(params, model, device, one_vec=False, only_used_xpo=False):
     # eval_batch_size = params["eval_batch_size"]
@@ -43,7 +89,7 @@ def encode_all_candidates(params, model, device, one_vec=False, only_used_xpo=Fa
     cand_encs = torch.cat(cand_encs, 0)
     return cand_encs, used_cand
 
-def read_dataset(dataset_name, params, tokenizer, logger = None, truncate = -1, has_true_label=False, add_sent_event_token=False, yes_no_format=False, seed_round=False):
+def read_dataset(dataset_name, params, tokenizer, truncate = -1, has_true_label=False, add_sent_event_token=False, yes_no_format=False, seed_round=False):
     file_name = "{}.jsonl".format(dataset_name)
     txt_file_path = os.path.join(params['data_path'], file_name)
 
@@ -55,15 +101,10 @@ def read_dataset(dataset_name, params, tokenizer, logger = None, truncate = -1, 
     # if 'debug' in params['output_path']:
     #     samples = samples[:100]
     if yes_no_format:
-        processed_data = process_mention_data_yes_no(
+        processed_data = process_mention_data_TC(
             samples=samples,  # use subset of valid data
             tokenizer=tokenizer,
             max_context_length=params["max_context_length"],
-            silent=params["silent"],
-            logger=logger,
-            debug=params["debug"],
-            add_mention_bounds=(not params["no_mention_bounds"]),
-            candidate_token_ids=None,
             params=params,
             truncate = truncate, 
             has_true_label = has_true_label,
@@ -76,11 +117,6 @@ def read_dataset(dataset_name, params, tokenizer, logger = None, truncate = -1, 
         samples=samples,  # use subset of valid data
         tokenizer=tokenizer,
         max_context_length=params["max_context_length"],
-        silent=params["silent"],
-        logger=logger,
-        debug=params["debug"],
-        add_mention_bounds=(not params["no_mention_bounds"]),
-        candidate_token_ids=None,
         params=params,
         truncate = truncate, 
         has_true_label = has_true_label,
@@ -88,70 +124,6 @@ def read_dataset(dataset_name, params, tokenizer, logger = None, truncate = -1, 
     )
     return processed_data
 
-
-def accuracy(out, labels):
-    outputs = np.argmax(out, axis=1)
-    return np.sum(outputs == labels)
-
-def accuracy_multiple_labels(logits, labels):
-    out_label = np.argmax(logits, axis=1)
-    # print(out_label, logits, labels)
-    cnt = 0
-    for i, label in enumerate(out_label):
-        if labels[i][label] == 1:
-            cnt += 1
-    return cnt
-
-def accuracy_multiple_labels_label_idx(logits, label_idx):
-    out_label = np.argmax(logits, axis=1)
-    cnt = 0
-    results = []
-    num_wo_other = 0
-    num_correct_wo_other = 0
-    for t, label_set in zip(out_label, label_idx):
-        # print(label_set)
-        if t in label_set:
-            cnt += 1
-            results.append(1)
-            if 0 not in label_set:
-                num_correct_wo_other += 1
-        else:
-            results.append(0)
-        
-        if 0 not in label_set:
-            num_wo_other += 1
-
-    # assert 1==0
-    return cnt, results, out_label, num_wo_other, num_correct_wo_other
-
-
-
-def accuracy_label_idx(logits, label_idx, label_mask):
-    out_label = np.argmax(logits, axis=1)
-    cnt = 0
-    results = []
-    total_results = []
-    num_wo_other = 0
-    num_correct_wo_other = 0
-    cur_label = 0
-    for label, l_mask in zip(label_idx, label_mask):
-        tmp_results = []
-        label = label[l_mask]
-        for l in label:
-            tmp_correct = int(out_label[cur_label] == l)
-            total_results.append(tmp_correct)
-            cnt += tmp_correct
-            
-            if l != 0:
-                num_correct_wo_other += tmp_correct
-                tmp_results.append(tmp_correct)
-                num_wo_other += 1
-            
-            cur_label += 1
-        results.append(tmp_results)
-    assert cur_label == len(out_label)
-    # assert 1==0
-    return cnt, results,total_results, out_label, num_wo_other, num_correct_wo_other
 
 def get_predicted_mention_bounds(logits, bounds):
     predicted_bounds = []
@@ -188,59 +160,16 @@ def eval_trigger_detection(predicted_mention_bounds, mention_idx, mention_idx_ma
 
     return predict_num_list, correct_num_list , gold_num_list, roleset_detail
 
-def remove_module_from_state_dict(state_dict):
-    new_state_dict = OrderedDict()
-    for key, value in state_dict.items():
-        name = "".join(key.split(".module"))
-        new_state_dict[name] = value
-    return new_state_dict
-
 
 def save_model(model, tokenizer, output_dir):
     """Saves the model and the tokenizer used in the output directory."""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
-    # model_to_save = model.module if hasattr(model, "module") else model
     output_model_file = os.path.join(output_dir, WEIGHTS_NAME)
-    output_config_file = os.path.join(output_dir, CONFIG_NAME)
     torch.save(model.state_dict(), output_model_file)
-    # model_to_save.config.to_json_file(output_config_file)
     tokenizer.save_vocabulary(output_dir)
 
 
-def get_logger(output_dir=None):
-    if output_dir != None:
-        os.makedirs(output_dir, exist_ok=True)
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-            datefmt="%m/%d/%Y %H:%M:%S",
-            level=logging.INFO,
-            handlers=[
-                logging.FileHandler(
-                    "{}/log.txt".format(output_dir), mode="a", delay=False
-                ),
-                logging.StreamHandler(sys.stdout),
-            ],
-        )
-    else:
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-            datefmt="%m/%d/%Y %H:%M:%S",
-            level=logging.INFO,
-            handlers=[logging.StreamHandler(sys.stdout)],
-        )
-
-    logger = logging.getLogger('UniversalED')
-    logger.setLevel(10)
-    return logger
-
-
 def write_to_file(path, string, mode="w"):
-    with open(path, mode) as writer:
-        writer.write(string)
-
-
-def get_biencoder(parameters):
-    return EncoderRanker(parameters)
-    
+    with open(path, mode) as f:
+        f.write(string)

@@ -6,7 +6,7 @@
     - [Setup](#setup)
     - [Model Training](#model-training)
     - [Predict](#predict)
-***
+
 ## Overview
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
 ***
@@ -92,8 +92,11 @@ Our model comprises three components:
   
 ![Overview of the framework](asset/model.png)
 
-To train our model
+To train the trigger identification model, use
+```sh
+bash scripts/run_trigger_detector.sh train 128 64 16 False wo_other_new_ontology
 
+```
 To train the different components of GLEN model, use 
 ```sh
 bash scripts/run_trigger_detector.sh train ./data/tokenized_final_no_other 128 64 16 False wo_other_new_ontology

@@ -12,11 +12,35 @@ ENT_TITLE_TAG = "[unused2]"
 def read_xpo():
     with open('./data/xpo_glen.json', 'r') as f:
         xpo = json.load(f)
-    node_to_id = {x:i + 1 for i, x in enumerate(xpo)}
-    id_to_node = {i + 1:x for i, x in enumerate(xpo)}
-    return xpo, node_to_id, id_to_node
+    node2id = {x:i + 1 for i, x in enumerate(xpo)}
+    node2id['other'] = 0
+    id2node = {node2id[k]:k for k in node2id}
 
-def process_one_data(item, mapping_dict, xpo_nodes, tokenizer, relation_dict = None, node_to_id = None, labeled=False, no_other=False):
+    id2node_detail = {i + 1:(xpo[x]['name'], xpo[x]['wd_description'], x) for i, x in enumerate(xpo)}
+    id2node[0] = ('others', 'other event types', 'other')
+
+    roleset_list = []
+    for node in xpo:
+        for roleset in xpo[node]['pb_roleset']:
+            if roleset not in roleset_list:
+                roleset_list.append(roleset)
+    roleset2id = {x:i + 1 for i, x in enumerate(roleset_list)}
+    roleset2id['other'] = 0
+    id2roleset = {roleset2id[k]:k for k in roleset2id}
+
+    xpo_used = [0]
+    for node in xpo:
+        if 'removing_reason' in xpo[node] and len(xpo[node]['removing_reason']):
+            xpo_used.append(0)
+            continue
+        if len(xpo[node]['pb_roleset']):
+            xpo_used.append(1)
+        else:
+            xpo_used.append(0)
+
+    return xpo, xpo_used, node2id, id2node, roleset2id, id2roleset, id2node_detail
+
+def process_one_data(item, mapping_dict, xpo_nodes, tokenizer, node2id = None, labeled=False, no_other=False):
     data =  {
         'id': item['id'],
         'text': item['sentence'],
@@ -76,9 +100,9 @@ def process_one_data(item, mapping_dict, xpo_nodes, tokenizer, relation_dict = N
 
     def get_true_label(event):
         if 'xpo_label' in event:
-            return node_to_id[event['xpo_label']]
+            return node2id[event['xpo_label']]
         elif len(mapping_dict[event['pb_roleset']]) == 1:
-            return node_to_id[mapping_dict[event['pb_roleset']][0]['node_code']]
+            return node2id[mapping_dict[event['pb_roleset']][0]['node_code']]
         else:
             return 0
 
@@ -94,16 +118,13 @@ def process_one_data(item, mapping_dict, xpo_nodes, tokenizer, relation_dict = N
     if labeled:
         data['true_label'] = [get_true_label(event) for event in item['events']] 
         
-
-    data['neighbor_nodes'] = [[list(relation_dict[label]) for label in _ if relation_dict] for _ in data['label_ids'] ]
-
     return data
 
-def preprocess(data, mapping_dict, xpo_nodes, relation_dict = None, node_to_id = None, labeled = False, no_other = False):
+def preprocess(data, mapping_dict, xpo_nodes, node2id = None, labeled = False, no_other = False):
     processed_data = []
     tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
     for item in tqdm(data):
-        processed_data.append(process_one_data(item, mapping_dict, xpo_nodes, tokenizer, relation_dict = relation_dict, node_to_id = node_to_id, labeled = labeled, no_other = no_other))
+        processed_data.append(process_one_data(item, mapping_dict, xpo_nodes, tokenizer, node2id = node2id, labeled = labeled, no_other = no_other))
     return processed_data
 
 
@@ -153,36 +174,8 @@ def get_node_tokenized_ids(xpo, max_seq_length=64, with_event_tag = False, outpu
     torch.save(cand_node_tokenized_ids, output_file)
 
     return 0
-    
-def get_node_relations(xpo):
-    wd_node_2_xpo_node = {xpo[node]['wd_node']:node for node in xpo}
-    node_2_node_id = {node:i+1 for i, node in enumerate(xpo)}
 
-    relation_dict = defaultdict(set)
-
-    for node in xpo:
-        if 'overlay_parents' in xpo[node]:
-            for parent in xpo[node]['overlay_parents']:
-                if parent['wd_node'] not in wd_node_2_xpo_node:
-                    # print(f"{parent['wd_node']} not in xpo nodes")
-                    continue
-                c = node_2_node_id[node]
-                p = node_2_node_id[wd_node_2_xpo_node[parent['wd_node']]]
-                relation_dict[c].add((p, 'parent'))
-                relation_dict[p].add((c, 'child'))
-        if 'similar_nodes' in xpo[node]:
-            for similar_node in xpo[node]['similar_nodes']:
-                if similar_node['wd_node'] not in wd_node_2_xpo_node:
-                    # print(f"{similar_node['wd_node']} not in xpo nodes")
-                    continue
-                n1 = node_2_node_id[node]
-                n2 = node_2_node_id[wd_node_2_xpo_node[similar_node['wd_node']]]
-                relation_dict[n1].add((n2, 'similar'))
-                relation_dict[n2].add((n1, 'similar'))
-        
-    return relation_dict
-
-def get_node_id(node_to_id):
+def get_node_id(node2id):
     roleset2nodes = defaultdict(set)
     for node in xpo:
         for roleset in xpo[node]['pb_roleset']:
@@ -195,7 +188,7 @@ def get_node_id(node_to_id):
             nodes_list.append({
                 'node_code': node,
                 'node_name': xpo[node]['name'],
-                'node_id': node_to_id[node],
+                'node_id': node2id[node],
                 'node_description': xpo[node]['wd_description']
             })
         roleset2nodes_detail[roleset] = nodes_list
@@ -205,27 +198,25 @@ if __name__=='__main__':
     print("Data preprocessing...")
 
     # read ontology
-    xpo, node_to_id, id_to_node = read_xpo()
+    xpo, xpo_used, node2id, id2node, roleset2id, id2roleset, id2node_detail = read_xpo()
 
     if not os.path.exists("./data/data_preprocessed"):
         os.makedirs("./data/data_preprocessed")
         print("Created: data_preprocessed")
 
     # get dict: roleset -> xpo node list
-    roleset2nodes_detail = get_node_id(node_to_id) 
+    roleset2nodes_detail = get_node_id(node2id) 
 
     # get tokenized ids for each even node
     get_node_tokenized_ids(xpo, with_event_tag=False, output_file = './data/data_preprocessed/node_tokenized_ids_<max_seq_length>.pt')
     get_node_tokenized_ids(xpo, with_event_tag=True, output_file='./data/data_preprocessed/node_tokenized_ids_<max_seq_length>_with_event_tag.pt')
     print("Toeknized: event nodes")
 
-    relation_dict = get_node_relations(xpo)
-
     # preprocess dev data
     print("Processing: dev data...")
     with open(f'./data/data_split/dev_annotated.json', 'r') as f:
         data = json.load(f)
-    processed_data = preprocess(data, roleset2nodes_detail, xpo, relation_dict=relation_dict, node_to_id = node_to_id, labeled = True, no_other = True)
+    processed_data = preprocess(data, roleset2nodes_detail, xpo, node2id = node2id, labeled = True, no_other = True)
     with open(f'./data/data_preprocessed/dev_annotated.jsonl', 'w') as f:
         for item in processed_data:
             f.write(json.dumps(item) + '\n')
@@ -234,7 +225,7 @@ if __name__=='__main__':
     print("Processing: test data...")
     with open(f'./data/data_split/test_annotated.json', 'r') as f:
         data = json.load(f)
-    processed_data = preprocess(data, roleset2nodes_detail, xpo, relation_dict=relation_dict, node_to_id = node_to_id, labeled = True, no_other = True)
+    processed_data = preprocess(data, roleset2nodes_detail, xpo, node2id = node2id, labeled = True, no_other = True)
     with open(f'./data/data_preprocessed/test_annotated.jsonl', 'w') as f:
         for item in processed_data:
             f.write(json.dumps(item) + '\n')
@@ -243,7 +234,7 @@ if __name__=='__main__':
     print("Processing: train data...")
     with open(f'./data/data_split/train.json', 'r') as f:
         data = json.load(f)
-    processed_data = preprocess(data, roleset2nodes_detail, xpo, relation_dict=relation_dict, node_to_id = node_to_id, labeled = False, no_other = True)
+    processed_data = preprocess(data, roleset2nodes_detail, xpo, node2id = node2id, labeled = False, no_other = True)
     with open(f'./data/data_preprocessed/train.jsonl', 'w') as f:
         for item in processed_data:
             f.write(json.dumps(item) + '\n')

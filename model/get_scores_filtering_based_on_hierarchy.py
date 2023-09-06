@@ -1,8 +1,6 @@
 import json
-from model.params import id2node, node_relation, roleset2id
+from model.constants import id2node_detail, node_relation
 from tqdm import tqdm
-import torch
-from data.utils import mapping_dict
 
 threshold = 0
 c_m_p_threshold = 0.065
@@ -65,7 +63,7 @@ def send_to_zoey():
                     trigger_id = f'{trigger_word}({trigger_id[0]}-{trigger_id[1] + 1})'
                     if trigger_id not in tmp_item['events']:
                         tmp_item['events'][trigger_id] = {}
-                    name, des, node_id = id2node[e_type]
+                    name, des, node_id = id2node_detail[e_type]
                     tmp_item['events'][trigger_id][key_name] = f"{node_id[4:]}: {name} - {des}"
             else:
                 for trigger_id, top1_type, top1_score, neighbour_nodes, pred_type, pred_score in results:
@@ -75,13 +73,13 @@ def send_to_zoey():
                     trigger_id = f'{trigger_word}({trigger_id[0]}-{trigger_id[1] + 1})'
                     if trigger_id not in tmp_item['events']:
                         tmp_item['events'][trigger_id] = {}
-                    top1_name, top1_des, top1_node_id = id2node[top1_type]
-                    pred_name, pred_des, pred_node_id = id2node[pred_type]
+                    top1_name, top1_des, top1_node_id = id2node_detail[top1_type]
+                    pred_name, pred_des, pred_node_id = id2node_detail[pred_type]
                     tmp_item['events'][trigger_id][key_name] = {
                         'pred': f"{pred_node_id[4:]}: {pred_name} - {pred_des} [{pred_score}]",
                         'top1': f"{top1_node_id[4:]}: {top1_name} - {top1_des} [{top1_score}]",
-                        'parents_of_top1': [f"{id2node[node_id][2][4:]}: {id2node[node_id][0]}" if node_id not in neighbour_nodes['parents'] else f"{id2node[node_id][2][4:]}: {id2node[node_id][0]} [{neighbour_nodes['parents'][node_id]}]" for node_id in node_relation[top1_type]['parents']],
-                        'children_of_top1': [f"{id2node[node_id][2][4:]}: {id2node[node_id][0]}" if node_id not in neighbour_nodes['children'] else f"{id2node[node_id][2][4:]}: {id2node[node_id][0]} [{neighbour_nodes['children'][node_id]}]" for node_id in node_relation[top1_type]['child']],
+                        'parents_of_top1': [f"{id2node_detail[node_id][2][4:]}: {id2node_detail[node_id][0]}" if node_id not in neighbour_nodes['parents'] else f"{id2node_detail[node_id][2][4:]}: {id2node_detail[node_id][0]} [{neighbour_nodes['parents'][node_id]}]" for node_id in node_relation[top1_type]['parents']],
+                        'children_of_top1': [f"{id2node_detail[node_id][2][4:]}: {id2node_detail[node_id][0]}" if node_id not in neighbour_nodes['children'] else f"{id2node_detail[node_id][2][4:]}: {id2node_detail[node_id][0]} [{neighbour_nodes['children'][node_id]}]" for node_id in node_relation[top1_type]['child']],
                         'pc_in_top_10': any(node_id in neighbour_nodes['parents'] for node_id in node_relation[top1_type]['parents']) or any(node_id in neighbour_nodes['children'] for node_id in node_relation[top1_type]['child'])
                     }
 
@@ -193,7 +191,7 @@ def get_score(c_m_p_threshold, eval_on_gold = False):
                 trigger_id = f'{trigger_word}({trigger_id[0]}-{trigger_id[1] + 1})'
                 if trigger_id not in tmp_item['events']:
                     tmp_item['events'][trigger_id] = {}
-                name, des, _ = id2node[e_type]
+                name, des, _ = id2node_detail[e_type]
                 tmp_item['events'][trigger_id][key_name] = f'{name}: {des}'
 
         add_to_results(predicted_results, 'pred')
@@ -238,72 +236,10 @@ def get_score(c_m_p_threshold, eval_on_gold = False):
 
 
 
-def group_by_roleset(c_m_p_threshold, eval_on_gold = True):
-    covered_roleset = []
-    with open('./covered_rolesets_in_added_train_data_step_1.txt', 'r') as f:
-        for line in f.readlines():
-            covered_roleset.append(int(line.replace('\n', '')))
-
-    clean_roleset = []
-    for roleset in mapping_dict:
-        if len(mapping_dict[roleset]) == 1:
-            clean_roleset.append(roleset2id[roleset])
-            
-    covered_roleset_event_cnt = 0
-    clean_roleset_event_cnt = 0
-    other_roleset_event_cnt = 0
-
-    k_list = [1,2,5,10]
-
-    covered_hit_at_k_cnt = {x:0 for x in k_list}
-    clean_hit_at_k_cnt = {x:0 for x in k_list}
-    other_hit_at_k_cnt = {x:0 for x in k_list}
-
-    for item in tqdm(predict_samples):
-
-        for event_id, trigger in enumerate(item['context']['mention_idxs']):
-            gold_type = item['true_label'][event_id]
-            roleset_id = item['roleset_ids'][event_id]
-            predicted_types = sorted(item['tc_types'][str(event_id)], key=lambda x:x[0], reverse=True)
-        
-            if roleset_id in clean_roleset:
-                clean_roleset_event_cnt += 1
-            elif roleset_id in covered_roleset:
-                covered_roleset_event_cnt += 1
-            else:
-                other_roleset_event_cnt += 1
-
-            for k in k_list:
-                k_types = [x[1] for x in predicted_types[:k]]
-                if gold_type in k_types:
-                    if roleset_id in clean_roleset:
-                        clean_hit_at_k_cnt[k] += 1
-                    elif roleset_id in covered_roleset:
-                        covered_hit_at_k_cnt[k] += 1
-                    else:
-                        other_hit_at_k_cnt[k] += 1
-
-
-            
-
-
-    scores = {}
-    scores['clean_roleset_event_cnt'] = clean_roleset_event_cnt
-    scores['covered_roleset_event_cnt'] = covered_roleset_event_cnt
-    scores['other_roleset_event_cnt'] = other_roleset_event_cnt
-    scores['total_cnt'] = clean_roleset_event_cnt + covered_roleset_event_cnt + other_roleset_event_cnt
-    for k in k_list:
-        scores[f"Hit@{k}_clean"] = clean_hit_at_k_cnt[k]/clean_roleset_event_cnt
-        scores[f"Hit@{k}_covered"] = covered_hit_at_k_cnt[k]/covered_roleset_event_cnt
-        scores[f"Hit@{k}_other"] = other_hit_at_k_cnt[k]/other_roleset_event_cnt
-        scores[f"Hit@{k}_total"] = (clean_hit_at_k_cnt[k] + covered_hit_at_k_cnt[k] + other_hit_at_k_cnt[k]) / scores['total_cnt']
-    print(json.dumps(scores, indent=True))
-
 # for c_m_p_threshold in tqdm(torch.linspace(0,0.2,100)):
 #     print('*'*10)
 #     print(f"c_m_p_threshold: {c_m_p_threshold}")
 #     get_score(c_m_p_threshold)
-# group_by_roleset(0.065, eval_on_gold = eval_on_gold)
 hit_k(0.065, eval_on_gold = eval_on_gold)
 get_score(0.065, eval_on_gold = eval_on_gold)
 

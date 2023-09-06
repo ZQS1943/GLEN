@@ -1,7 +1,7 @@
 import os
 import torch
 from collections import defaultdict
-from model.params import relation2idx, roleset2id, SENT_TAG, EVENT_TAG
+from constants import roleset2id, SENT_TAG, EVENT_TAG
 from tqdm import tqdm
 
 def sort_mentions(
@@ -25,7 +25,6 @@ def do_sort(
     sample['xpo_ids'] = sort_mentions(sample['xpo_ids'], orig_idx_to_sort_idx)
     sample['xpo_titles'] = sort_mentions(sample['xpo_titles'], orig_idx_to_sort_idx)
     sample['label'] = sort_mentions(sample['label'], orig_idx_to_sort_idx)
-    sample['neighbor_nodes'] = sort_mentions(sample['neighbor_nodes'], orig_idx_to_sort_idx)
     sample['rolesets'] = sort_mentions(sample['rolesets'], orig_idx_to_sort_idx)
     if 'true_label' in sample:
         sample['true_label'] = sort_mentions(sample['true_label'], orig_idx_to_sort_idx)
@@ -151,12 +150,7 @@ def process_mention_data(
     samples,
     tokenizer,
     max_context_length,
-    silent,
-    debug=False,
-    logger=None,
-    add_mention_bounds=True,
     saved_context_dir=None,
-    candidate_token_ids=None,
     params=None,
     truncate=-1, 
     has_true_label = False,
@@ -166,16 +160,13 @@ def process_mention_data(
     Returns /inclusive/ bounds
     '''
     extra_ret_values = {}
-    print(f"saved_context_dir:{saved_context_dir}")
     if saved_context_dir is not None and os.path.exists(os.path.join(saved_context_dir, "tensor_tuple.pt")):
         data = torch.load(os.path.join(saved_context_dir, "data.pt"))
         tensor_data_tuple = torch.load(os.path.join(saved_context_dir, "tensor_tuple.pt"))
         return data, tensor_data_tuple, extra_ret_values
 
-    if candidate_token_ids is None and not debug:
-        candidate_token_ids = torch.load(params["cand_token_ids_path"])
-        if logger: logger.info("Loaded saved entities info")
-        extra_ret_values["candidate_token_ids"] = candidate_token_ids
+    candidate_token_ids = torch.load(params["cand_token_ids_path"])
+    extra_ret_values["candidate_token_ids"] = candidate_token_ids
 
     processed_samples = []
 
@@ -183,14 +174,10 @@ def process_mention_data(
 
     if truncate != -1:
         samples = samples[:truncate]
-    if silent:	
-        iter_ = samples
-    else:	
-        iter_ = tqdm(samples)
+    iter_ = tqdm(samples)
     
 
     for idx, sample in enumerate(iter_):
-        assert not add_mention_bounds, "Adding mention bounds, but we have multiple entities per example"
         # print(sample)
         context_tokens = get_context_representation_multiple_mentions_idxs(
             sample, tokenizer, max_context_length, add_sent_event_token = add_sent_event_token,
@@ -212,7 +199,6 @@ def process_mention_data(
         def get_roleset_id(x):
             return roleset2id[x] if x in roleset2id else 0
         roleset_ids = [get_roleset_id(roleset) for roleset in sample['rolesets']]
-        neighbor_nodes = sample["neighbor_nodes"]
 
 
         # remove those that got pruned off
@@ -236,9 +222,6 @@ def process_mention_data(
 
         label_probability = [[1/len(_) for label in _] for _ in label_ids]
         # label_probability = [[1 for label in _] for _ in label_ids]
-
-        n_nodes = [[[neighbor[0] for neighbor in label] for label in mention] for mention in neighbor_nodes]
-        n_relations = [[[relation2idx[neighbor[1]] for neighbor in label] for label in mention] for mention in neighbor_nodes]
 
         domain = ''
         if 'propbank_' in sample['id']:
@@ -276,8 +259,6 @@ def process_mention_data(
             "true_label": true_label,
             "roleset_ids": roleset_ids,
             "label_probability": label_probability,
-            "neighbor_nodes": n_nodes,
-            "neighbor_relations": n_relations,
             'label_to_mention': label_to_mention,
         }
         # print(record)
@@ -291,50 +272,35 @@ def process_mention_data(
     return processed_samples
 
 
-def process_mention_data_yes_no(
+def process_mention_data_TC(
     samples,
     tokenizer,
     max_context_length,
-    silent,
-    debug=False,
-    logger=None,
-    add_mention_bounds=True,
     saved_context_dir=None,
-    candidate_token_ids=None,
     params=None,
-    truncate=-1, 
-    has_true_label = False,
-    add_sent_event_token = False,
-    seed_round=False
+    truncate=-1
 ):
     '''
     Returns /inclusive/ bounds
     '''
     extra_ret_values = {}
-    print(f"saved_context_dir:{saved_context_dir}")
     if saved_context_dir is not None and os.path.exists(os.path.join(saved_context_dir, "tensor_tuple.pt")):
         data = torch.load(os.path.join(saved_context_dir, "data.pt"))
         tensor_data_tuple = torch.load(os.path.join(saved_context_dir, "tensor_tuple.pt"))
         return data, tensor_data_tuple, extra_ret_values
-
-    candidate_token_ids = torch.load(params["cand_token_ids_path"])
 
     processed_samples = []
 
     if truncate != -1:
         samples = samples[:truncate]
 
-    if silent:	
-        iter_ = samples
-    else:	
-        iter_ = tqdm(samples)
+    iter_ = tqdm(samples)
     
     template = f"⟨type⟩ is defined as ⟨definition⟩. ⟨sentence⟩ Does ⟨trigger⟩ indicate a ⟨type⟩ event? [MASK]"
 
     for idx, sample in enumerate(iter_):
         sen = sample['text']
         for eid, (mention, label_ids, label_titles, label_descriptions, true_label) in enumerate(zip(sample['mentions'], sample['label_ids'], sample['xpo_titles'], sample['label'], sample['true_label'])):
-            # sen_w_trg = sen[:mention[0]] + TRG_TAG + ' ' + sen[mention[0]:mention[1]] + ' ' + TRG_TAG + sen[mention[1]:]
             sen_w_trg = sen
             trigger_word = sen[mention[0]:mention[1]]
             if len(label_ids) == 1:
@@ -353,8 +319,6 @@ def process_mention_data_yes_no(
                 assert len(input_ids) == max_context_length
                 mask_token_mask = [0]*max_context_length
                 mask_token_mask[mask_token_id] = 1
-                # print(tokenizer.convert_ids_to_tokens(input_ids))
-                # print(tokenizer.convert_ids_to_tokens(input_ids)[mask_token_id])
                 processed_samples.append({
                     'id': sample['id'],
                     'event_idx': eid,
@@ -363,8 +327,7 @@ def process_mention_data_yes_no(
                     'label': label,
                     'mask_token_mask':mask_token_mask
                 })
-    
-    # assert 12==0
+
     return processed_samples
 
 

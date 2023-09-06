@@ -4,29 +4,29 @@ import random
 import numpy as np
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-from encoder import TriggerLocalizer
+from encoder import TriggerIdentifier
 import utils as utils
-from params import EDParser
+from params import parse_arguments
 from collections import defaultdict
 
-from model.dataset import UniEDdataset, collate_fn_TD
+from model.dataset import TITRdataset, collate_fn_TI
 from model.utils import get_predicted_mention_bounds
 from model.params import id2roleset
 
-def eval_mention_detection(params, trigger_detector, device, predict_samples, predict_dataloader, silent=True):
+def eval_mention_detection(params, trigger_identifier, device, predict_samples, predict_dataloader, silent=True):
     results = {}
     predict_num = correct_num = gold_num = 0
     predicted_data = []
 
     roleset_detail = defaultdict(lambda: {'gold_num':0, 'correct_num':0})
     domain_detail = defaultdict(lambda: {'gold_num':0, 'correct_num':0, 'predict_num': 0})
-    trigger_detector.eval()
+    trigger_identifier.eval()
     with torch.no_grad():
         for step, batch in enumerate(tqdm(predict_dataloader, desc="Prediction")):
             context_input, mention_label, mention_label_mask, data_index = batch
             context_input = context_input.to(device)
             
-            _, mention_logits, mention_bounds  = trigger_detector(
+            _, mention_logits, mention_bounds  = trigger_identifier(
                 context_input,
                 return_loss=False,
             )
@@ -127,13 +127,7 @@ def eval_mention_detection(params, trigger_detector, device, predict_samples, pr
     return results
 
 if __name__ == "__main__":
-    parser = EDParser(add_model_args=True)
-    parser.add_training_args()
-
-    args = parser.parse_args()
-    print(args)
-
-    params = args.__dict__
+    params = parse_arguments()
 
     seed = params["seed"]
     random.seed(seed)
@@ -141,9 +135,9 @@ if __name__ == "__main__":
     torch.manual_seed(seed)
 
     # Init model
-    trigger_detector = TriggerLocalizer(params)
-    tokenizer = trigger_detector.tokenizer
-    device = trigger_detector.device
+    trigger_identifier = TriggerIdentifier(params)
+    tokenizer = trigger_identifier.tokenizer
+    device = trigger_identifier.device
     eval_batch_size = params["eval_batch_size"]
 
 
@@ -153,6 +147,6 @@ if __name__ == "__main__":
     # print(predict_samples[:10])
     # assert 1==0
 
-    predict_set = UniEDdataset(predict_samples)
-    predict_dataloader = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TD)
-    type_classification_results = eval_mention_detection(params, trigger_detector, device, predict_samples, predict_dataloader, silent=False)    
+    predict_set = TITRdataset(predict_samples)
+    predict_dataloader = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TI)
+    type_classification_results = eval_mention_detection(params, trigger_identifier, device, predict_samples, predict_dataloader, silent=False)    

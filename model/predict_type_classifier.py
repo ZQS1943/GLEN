@@ -5,12 +5,12 @@ import numpy as np
 from tqdm import tqdm
 from collections import defaultdict
 from torch.utils.data import DataLoader
-from encoder import EventTriggerMatchingYN
+from encoder import TypeClassification
 import utils as utils
-from params import EDParser, id2node
+from params import parse_arguments, id2node_detail
 import pickle as pkl
 
-from model.dataset import YNdataset, collate_fn_YN
+from model.dataset import TCdataset, collate_fn_TC
 
 def evaluate(event_trigger_matcher, test_dataloader, device, params, out_name = ''):
     output_path =f"{params['output_path']}/bts_predict_scores_{out_name}.pkl"
@@ -112,7 +112,7 @@ def get_train_dataloder(params):
             cnt_events += 1
             events_list.append((item['data_id'], eid))
             for node in candidate_set:
-                name, des, _ = id2node[node]
+                name, des, _ = id2node_detail[node]
                 # print(node, name, des)
                 if des is None:
                     des = ''
@@ -143,8 +143,8 @@ def get_train_dataloder(params):
                 })
     print(f"get {len(processed_train_samples)} training data from {cnt_events} events")
 
-    predict_set = YNdataset(processed_train_samples)
-    predcit_dataloader = DataLoader(predict_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_YN)
+    predict_set = TCdataset(processed_train_samples)
+    predcit_dataloader = DataLoader(predict_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
     return predcit_dataloader, events_list
 
 def get_predict_dataloder(params, predict_samples, k = 10, eval_on_gold=False):
@@ -165,7 +165,7 @@ def get_predict_dataloder(params, predict_samples, k = 10, eval_on_gold=False):
             cnt_events += 1
             trigger_words = ' '.join(item['context']['tokens'][trigger[0]:trigger[1] + 1]).replace(' ##', '')
             for node in types_for_sentence:
-                name, des, _ = id2node[node]
+                name, des, _ = id2node_detail[node]
                 if des is None:
                     des = ''
                 prefix = prefix_template.replace('⟨type⟩', name).replace('⟨definition⟩', des)
@@ -191,8 +191,8 @@ def get_predict_dataloder(params, predict_samples, k = 10, eval_on_gold=False):
                 })
     print(f"get {len(processed_predict_samples)} predicting data from {cnt_events} events")
 
-    predict_set = YNdataset(processed_predict_samples)
-    predcit_dataloader = DataLoader(predict_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_YN)
+    predict_set = TCdataset(processed_predict_samples)
+    predcit_dataloader = DataLoader(predict_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
     return predcit_dataloader
 
 def evaluate_final_score(event_trigger_matcher, predict_samples, test_dataloader, device, params, eval_on_gold=False):
@@ -233,17 +233,9 @@ def evaluate_final_score(event_trigger_matcher, predict_samples, test_dataloader
     
     return results_dict
 
-# def get_final_score(results_dict, predict_samples):
-
 
 if __name__ == "__main__":
-    parser = EDParser(add_model_args=True)
-    parser.add_training_args()
-
-    args = parser.parse_args()
-    print(args)
-
-    params = args.__dict__
+    params = parse_arguments()
 
     seed = params["seed"]
     random.seed(seed)
@@ -252,20 +244,20 @@ if __name__ == "__main__":
 
 
     # Init model
-    event_trigger_matcher = EventTriggerMatchingYN(params)
+    event_trigger_matcher = TypeClassification(params)
     tokenizer = event_trigger_matcher.tokenizer
     device = event_trigger_matcher.device
 
     # evaluate on dev set
-    # dev_samples = utils.read_dataset("annotated_dev_set", params, tokenizer, logger = logger, yes_no_format = True)
-    # dev_set = YNdataset(dev_samples)
-    # dev_dataloader = DataLoader(dev_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_YN)
+    # dev_samples = utils.read_dataset("annotated_dev_set", params, tokenizer, yes_no_format = True)
+    # dev_set = TCdataset(dev_samples)
+    # dev_dataloader = DataLoader(dev_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
     # evaluate(event_trigger_matcher, dev_dataloader, device, params, out_name = 'dev_set')
 
     # evaluate on test set
-    # test_samples = utils.read_dataset("annotated_test_set", params, tokenizer, logger = logger, yes_no_format = True)
-    # test_set = YNdataset(test_samples)
-    # test_dataloader = DataLoader(test_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_YN)
+    # test_samples = utils.read_dataset("annotated_test_set", params, tokenizer, yes_no_format = True)
+    # test_set = TCdataset(test_samples)
+    # test_dataloader = DataLoader(test_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
     # evaluate(event_trigger_matcher, test_dataloader, device, params)
 
     # prediction of train set
