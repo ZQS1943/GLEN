@@ -1,8 +1,9 @@
 # GLEN: General-Purpose Event Detection
 - [GLEN: General-Purpose Event Detection](#glen-general-purpose-event-detection)
   - [Overview](#overview)
+  - [Quick Start: Docker](#quick-start-docker)
   - [Data Format](#data-format)
-  - [Experiments](#experiments)
+  - [Reproduction](#reproduction)
     - [Setup](#setup)
     - [Model Training](#model-training)
     - [Predict](#predict)
@@ -10,6 +11,9 @@
 ## Overview
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
 ***
+
+## Quick Start: Docker
+
 
 ## Data Format
 Each data file in ./data/data_split is in json format, which contain a list of data instances. 
@@ -74,7 +78,7 @@ Each data file in ./data/data_split is in json format, which contain a list of d
 ```
 
 ***
-## Experiments
+## Reproduction
 ### Setup
 ```sh
     git clone https://github.com/ZQS1943/GLEN.git
@@ -103,6 +107,7 @@ bash scripts/train_type_ranking.sh
 Before we train Type Classification, we need to get the top k event types for each sentence in the train set predicted by the trained Type Ranking model. To get this, use
 ```sh
 bash scripts/predict_type_ranking.sh train_set
+# param1: the predicting data
 ```
 For training the Type Classification model, we adopt an incremental self-labeling procedure to handle the partial labels. Please refer to Section 3.3 of the paper for more details. To train a base classifier, use
 ```sh
@@ -110,6 +115,6 @@ bash scripts/train_type_classifier.sh 0 ./exp/type_ranking/epoch_4/type_ranking_
 # param1: the model number 
 # param2: the path to the training data
 ```
-
+After the base
 
 ### Predict

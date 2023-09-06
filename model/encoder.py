@@ -588,21 +588,6 @@ class TriggerIdentifier(torch.nn.Module):
         num_cand_mentions=50, topK_threshold=-4.5,
         get_mention_scores=True,
     ):
-        """
-        if gold_mention_bounds specified, selects according to gold_mention_bounds,
-        otherwise selects according to top-scoring mentions
-
-        Returns: Dictionary
-            mention_reps: torch.FloatTensor (bsz, max_num_pred_mentions, embed_dim): mention embeddings
-            mention_masks: torch.BoolTensor (bsz, max_num_pred_mentions): mention padding mask
-            mention_bounds: torch.LongTensor (bsz, max_num_pred_mentions, 2)
-            (
-            mention_logits: torch.FloatTensor (bsz, max_num_pred_mentions): mention scores/logits
-            all_mention_mask: torch.BoolTensor ((bsz, all_cand_mentions)
-            all_mention_logits: torch.FloatTensor (bsz, all_cand_mentions): all mention scores/logits
-            all_mention_bounds: torch.LongTensor (bsz, all_cand_mentions, 2): all mention bounds
-            )
-        """
         token_idx_cands, segment_idx_cands, mask_cands = to_bert_input(
             cands, self.NULL_IDX
         )
