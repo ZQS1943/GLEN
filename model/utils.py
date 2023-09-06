@@ -60,7 +60,6 @@ def padding_with_multiple_dim(data, pad_idx=-1, dtype=torch.long):
     return padded_data, padding_mask
 
 
-
 def encode_all_candidates(params, model, device, one_vec=False, only_used_xpo=False):
     # eval_batch_size = params["eval_batch_size"]
     eval_batch_size = 128
@@ -74,7 +73,7 @@ def encode_all_candidates(params, model, device, one_vec=False, only_used_xpo=Fa
     else:
         used_cand = None
         candidate_token_ids_list = torch.tensor([candidate_token_ids[i] for i in range(len(candidate_token_ids))], dtype=torch.long)
-    print(f"predicting {len(candidate_token_ids_list)} cand vecs...")
+    print(f"Predicting {len(candidate_token_ids_list)} Events ...")
     # assert 1==0
     all_cands = TensorDataset(candidate_token_ids_list)
     all_cands_loder = DataLoader(all_cands, batch_size=eval_batch_size, shuffle=False)
@@ -90,6 +89,7 @@ def encode_all_candidates(params, model, device, one_vec=False, only_used_xpo=Fa
     return cand_encs, used_cand
 
 def read_dataset(dataset_name, params, tokenizer, truncate = -1, has_true_label=False, add_sent_event_token=False, yes_no_format=False, seed_round=False):
+    print("Data Loading ...")
     file_name = "{}.jsonl".format(dataset_name)
     txt_file_path = os.path.join(params['data_path'], file_name)
 
@@ -105,10 +105,6 @@ def read_dataset(dataset_name, params, tokenizer, truncate = -1, has_true_label=
             samples=samples,  # use subset of valid data
             tokenizer=tokenizer,
             max_context_length=params["max_context_length"],
-            params=params,
-            truncate = truncate, 
-            has_true_label = has_true_label,
-            add_sent_event_token = add_sent_event_token,
             seed_round=seed_round
         )
         return processed_data

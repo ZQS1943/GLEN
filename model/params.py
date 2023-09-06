@@ -107,11 +107,11 @@ def define_arguments(parser):
     )
     # TODO: refine this later
     parser.add_argument(
-        "--train_samples_path",
-        default='./cache/processed_mention_data_with_top_100_events_annotated_dev_set.json',
+        "--TC_train_data_path",
+        default=None,
         type=str,
         required=False,
-        help="The full path to the train_samples.",
+        help="The path to the train data of Type Classification model.",
     )  
     parser.add_argument(
         "--cand_token_ids_path",

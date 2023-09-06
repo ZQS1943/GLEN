@@ -100,6 +100,11 @@ def collate_fn_TR_Train(batch):
 
     return (context_vecs, event_type_vecs, index, event_indexer, candidate_label_sets, negative_smaples)
 
+def collate_fn_TR_Predict(batch):
+    index = torch.tensor([x['index'] for x in batch], dtype=torch.long)
+    context_vecs = torch.tensor([x['context_vecs'] for x in batch], dtype=torch.long)
+    return (context_vecs, index)
+
 
 def collate_fn_TC(batch):
     index = torch.tensor([x['index'] for x in batch], dtype=torch.long)
@@ -126,14 +131,3 @@ def collate_fn_TC(batch):
 
     true_label = [x['true_label'] for x in batch]
     return (context_vecs, event_type_vecs, label, index, event_indexer, true_label)
-
-
-
-def collate_fn_TC(batch):
-    data_id = [x['id'] for x in batch]
-    event_idx = [x['event_idx'] for x in batch]
-    event_id = [x['event_id'] for x in batch]
-    input_ids = torch.tensor([x['input_ids'] for x in batch], dtype=torch.long)
-    labels = torch.tensor([x['label'] for x in batch], dtype=torch.float)
-    mask_token_mask = torch.tensor([x['mask_token_mask'] for x in batch], dtype=torch.bool)
-    return data_id,event_idx,event_id,input_ids,labels, mask_token_mask

@@ -97,7 +97,7 @@ def predict_train_set(event_trigger_matcher, test_dataloader, device, params, ev
             f.write(json.dumps({'sent_id': key[0], 'event_id': key[1], 'scores': results_dict[key]}) + '\n')
 
 def get_train_dataloder(params):
-    with open(params['train_samples_path'], 'r') as f:
+    with open(params['TC_train_data_path'], 'r') as f:
         train_samples = json.load(f)
     if params['data_truncation'] != -1:
         train_samples = train_samples[:params['data_truncation']]

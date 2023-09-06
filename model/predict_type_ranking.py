@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from model.encoder import TypeRanking
 from model.params import parse_arguments
-from model.dataset import TITRdataset, collate_fn_TC
+from model.dataset import TITRdataset, collate_fn_TR_Predict
 from model.utils import encode_all_candidates, read_dataset
 
 def predict_top_k(output_file, type_ranking, device, predict_dataloader, cand_encs, predict_samples, used_cand, k = 20):
@@ -18,13 +18,12 @@ def predict_top_k(output_file, type_ranking, device, predict_dataloader, cand_en
     with torch.no_grad():
         type_ranking.eval()
         for step, batch in enumerate(tqdm(predict_dataloader, desc="Prediction")):
-            context_vecs, _, _, data_index, _, _, _ = batch
+            context_vecs, data_index= batch
             context_vecs = context_vecs.to(device)
 
             _, logits = type_ranking(
-                context_vecs, _,
+                context_vecs, None,
                 cand_encs=cand_encs,
-                return_loss=False,
             )
             
             top_k = torch.topk(logits, k, dim=1)
@@ -126,9 +125,8 @@ if __name__ == "__main__":
     # output_file = f'./cache/TR_and_TD_results_annotated_test_no_other.json'
 
     # predict_set = TITRdataset(predict_samples, with_sent_tag=True)    
-    predict_dataloader = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TC)
+    predict_dataloader = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TR_Predict)
 
-    print("Embedding All Events...")
     cand_encs, used_cand = encode_all_candidates(params, type_ranking, device, only_used_xpo=True)
 
     # type_classification_results = predict_all_cands(type_ranking, device, predict_dataloader, cand_encs, used_cand)

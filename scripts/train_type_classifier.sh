@@ -6,4 +6,5 @@ python model/train_type_classifier.py \
     --learning_rate 1e-5 \
     --train_batch_size 32 \
     --max_context_length 512 \
-    --train_samples_path ./cache/type_ranking_results_with_top_20_events_train_set_kairos_predicted.json
+    --k 2
+    --TC_train_data_path ./exp/type_ranking/epoch_4/type_ranking_results_of_train_set_with_top_20_events.json

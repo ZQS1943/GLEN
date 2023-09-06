@@ -36,7 +36,6 @@ def main(params):
     grad_acc_steps = params["gradient_accumulation_steps"]
     train_batch_size = params["train_batch_size"] // grad_acc_steps
 
-    print("Data Loading ...")
     train_samples = read_dataset("train", params, tokenizer, add_sent_event_token=True, truncate=params['data_truncation'])
     train_set = TITRdataset(train_samples, only_sen_w_events=True)
     train_dataloader = DataLoader(train_set, batch_size=train_batch_size, shuffle=True, collate_fn=collate_fn_TR_Train)

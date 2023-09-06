@@ -24,7 +24,7 @@ cnt_clean_events = 0
 with open(original_data_file, 'r') as f:
     data = json.load(f)
 for data_idx, item in tqdm(enumerate(data)):
-    data[data_idx]['predicted_labels_by_bts'] = {}
+    data[data_idx]['labels_predicted_by_TC'] = {}
     for eid, candidate_set in enumerate(item['label_idx']):
         if len(candidate_set) <= 1:
             cnt_clean_events += 1
@@ -36,7 +36,7 @@ for data_idx, item in tqdm(enumerate(data)):
         sorted_cands = sorted(list(zip(candidate_set, cur_result['scores'])), key=lambda x:x[1], reverse=True)
         if sorted_cands[0][1] - sorted_cands[1][1] < threshold:
             continue
-        data[data_idx]['predicted_labels_by_bts'][eid] = sorted_cands[0][0]
+        data[data_idx]['labels_predicted_by_TC'][eid] = sorted_cands[0][0]
         cnt_selected_events += 1
         covered_rolesets.add(data[data_idx]['roleset_ids'][eid])
     if cur_p == len(predicted_results):
