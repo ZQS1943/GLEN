@@ -13,7 +13,7 @@ from model.optimizer import get_optimizer
 from model.params import parse_arguments
 from model.utils import read_dataset, write_to_file, save_model
 from model.constants import id2node_detail
-from model.encoder import TypeClassification
+from model.encoder import TypeClassifier
 from model.dataset import TCdataset, collate_fn_TC
 from model.data_process import process_data_TC_w_token_id
 
@@ -30,7 +30,7 @@ def training(params):
         os.makedirs(model_output_path)
     
     # Init model
-    type_classifier = TypeClassification(params)
+    type_classifier = TypeClassifier(params)
     tokenizer = type_classifier.tokenizer
     device = type_classifier.device
 

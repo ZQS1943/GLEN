@@ -90,6 +90,7 @@ if __name__ == "__main__":
     type_ranking = TypeRanking(params)
     tokenizer = type_ranking.tokenizer
     device = type_ranking.device
+    
     eval_batch_size = params["eval_batch_size"]
 
     if params['predict_set'] == 'train_set':

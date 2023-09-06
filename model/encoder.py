@@ -517,9 +517,9 @@ class EncoderModule(torch.nn.Module):
                     print('Overwriting', prefix + 'classification_heads.' + k)
                     state_dict[prefix + 'classification_heads.' + k] = v
 
-class TypeClassification(torch.nn.Module):
+class TypeClassifier(torch.nn.Module):
     def __init__(self, params, model_path=None):
-        super(TypeClassification, self).__init__()
+        super(TypeClassifier, self).__init__()
         self.params = params
         self.device = torch.device("cuda")
         self.n_gpu = torch.cuda.device_count()

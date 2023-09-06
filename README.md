@@ -117,9 +117,10 @@ bash scripts/train_type_classifier.sh 0 ./exp/type_ranking/epoch_4/type_ranking_
 ```
 After the base classifier is trained, we use this model to self-label the train set.
 ```sh
-bash scripts/predict_type_classifier.sh 0 train_set
+bash scripts/predict_type_classifier.sh 0 train_set ./exp/type_ranking/epoch_4/type_ranking_results_of_train_set_with_top_20_events.json
 # param1: the model number
 # param2: the predicting data
+# param3: the path to the training data
 ```
 
 ### Predict

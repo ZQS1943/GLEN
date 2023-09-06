@@ -7,26 +7,26 @@ import numpy as np
 from tqdm import tqdm
 from collections import defaultdict
 from torch.utils.data import DataLoader
-from encoder import TypeClassification
-import utils as utils
-from params import parse_arguments, id2node_detail
+
+from model.encoder import TypeClassifier
+from model.params import parse_arguments, id2node_detail
 import pickle as pkl
-
 from model.dataset import TCdataset, collate_fn_TC
+from model.utils import read_dataset
 
-def evaluate(event_trigger_matcher, test_dataloader, device, params, out_name = ''):
+def evaluate(type_classifier, test_dataloader, device, params, out_name = ''):
     output_path =f"{params['output_path']}/bts_predict_scores_{out_name}.pkl"
     results = []
     gold_labels = []
     case_ids = []
     with torch.no_grad():
-        event_trigger_matcher.eval()
+        type_classifier.eval()
         for batch in tqdm(test_dataloader):
             data_id,event_idx,event_id,input_ids,labels, mask_token_mask = batch
             input_ids = input_ids.to(device)
             # labels = labels.to(device)
             mask_token_mask = mask_token_mask.to(device)
-            yes_scores,_ = event_trigger_matcher(input_ids, mask_token_mask, labels=labels, return_loss=False)
+            yes_scores,_ = type_classifier(input_ids, mask_token_mask, labels=labels, return_loss=False)
             yes_scores = yes_scores.detach().cpu()
             results.append(yes_scores)
             gold_labels.append(labels)
@@ -68,19 +68,19 @@ def evaluate(event_trigger_matcher, test_dataloader, device, params, out_name = 
         print(f"accuracy: {float(correct_num/len(yes_label))}; total num: {len(yes_label)}")
     assert 1==0
 
-def predict_train_set(event_trigger_matcher, test_dataloader, device, params, events_list):
+def predict_train_set(type_classifier, test_dataloader, device, params, events_list):
     output_path =f"{params['output_path']}/bts_prediction_results_on_trainset.jsonl"
     results = []
     case_ids = []
     with torch.no_grad():
-        event_trigger_matcher.eval()
+        type_classifier.eval()
         for batch in tqdm(test_dataloader):
             data_id,event_idx,event_id,input_ids, _ , mask_token_mask = batch
             # print(batch)
             input_ids = input_ids.to(device)
             # labels = labels.to(device)
             mask_token_mask = mask_token_mask.to(device)
-            yes_scores,_ = event_trigger_matcher(input_ids, mask_token_mask,return_loss=False)
+            yes_scores,_ = type_classifier(input_ids, mask_token_mask,return_loss=False)
             yes_scores = yes_scores.detach().cpu()
             results.append(yes_scores)
             case_ids.extend(list(zip(data_id, event_idx)))
@@ -197,18 +197,18 @@ def get_predict_dataloder(params, predict_samples, k = 10, eval_on_gold=False):
     predcit_dataloader = DataLoader(predict_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
     return predcit_dataloader
 
-def evaluate_final_score(event_trigger_matcher, predict_samples, test_dataloader, device, params, eval_on_gold=False):
+def evaluate_final_score(type_classifier, predict_samples, test_dataloader, device, params, eval_on_gold=False):
     results = []
     case_ids = []
     event_ids = []
     with torch.no_grad():
-        event_trigger_matcher.eval()
+        type_classifier.eval()
         for batch in tqdm(test_dataloader):
             data_id,event_idx,event_id,input_ids,labels, mask_token_mask = batch
             input_ids = input_ids.to(device)
             # labels = labels.to(device)
             mask_token_mask = mask_token_mask.to(device)
-            yes_scores,_ = event_trigger_matcher(input_ids, mask_token_mask, labels=labels, return_loss=False)
+            yes_scores,_ = type_classifier(input_ids, mask_token_mask, labels=labels, return_loss=False)
             yes_scores = yes_scores.detach().cpu()
             results.append(yes_scores)
             event_ids.extend(event_id)
@@ -237,34 +237,38 @@ def evaluate_final_score(event_trigger_matcher, predict_samples, test_dataloader
 
 
 if __name__ == "__main__":
+    print("-- Type Classifier: Predict --")
     params = parse_arguments()
 
+    # Fix the random seeds
     seed = params["seed"]
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-
     # Init model
-    event_trigger_matcher = TypeClassification(params)
-    tokenizer = event_trigger_matcher.tokenizer
-    device = event_trigger_matcher.device
+    type_classifier = TypeClassifier(params)
+    tokenizer = type_classifier.tokenizer
+    device = type_classifier.device
+
+    eval_batch_size = params["eval_batch_size"]
+
+    if params['predict_set'] == 'train_set':
+        predict_dataloder, events_list = get_train_dataloder(params)
+        predict_train_set(type_classifier, predict_dataloder, device, params, events_list)
 
     # evaluate on dev set
-    # dev_samples = utils.read_dataset("annotated_dev_set", params, tokenizer, yes_no_format = True)
+    # dev_samples = read_dataset("annotated_dev_set", params, tokenizer, yes_no_format = True)
     # dev_set = TCdataset(dev_samples)
     # dev_dataloader = DataLoader(dev_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
-    # evaluate(event_trigger_matcher, dev_dataloader, device, params, out_name = 'dev_set')
+    # evaluate(type_classifier, dev_dataloader, device, params, out_name = 'dev_set')
 
     # evaluate on test set
-    # test_samples = utils.read_dataset("annotated_test_set", params, tokenizer, yes_no_format = True)
+    # test_samples = read_dataset("annotated_test_set", params, tokenizer, yes_no_format = True)
     # test_set = TCdataset(test_samples)
     # test_dataloader = DataLoader(test_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
-    # evaluate(event_trigger_matcher, test_dataloader, device, params)
+    # evaluate(type_classifier, test_dataloader, device, params)
 
-    # prediction of train set
-    # predict_dataloder, events_list = get_train_dataloder(params)
-    # predict_train_set(event_trigger_matcher, predict_dataloder, device, params, events_list)
 
     # evaluate on annotated test set based on TR and TD results
     eval_on_gold = True
@@ -272,7 +276,7 @@ if __name__ == "__main__":
     with open('./exp/experiments_type_ranking/se_id_new_loss_new_ontology/bert_base/epoch_4/TR_and_TD_results_annotated_test_no_other.json', 'r') as f:
         predict_samples = json.load(f)
     predict_dataloder = get_predict_dataloder(params, predict_samples, eval_on_gold=eval_on_gold)
-    results_dict = evaluate_final_score(event_trigger_matcher, predict_samples, predict_dataloder, device, params, eval_on_gold=eval_on_gold)
+    results_dict = evaluate_final_score(type_classifier, predict_samples, predict_dataloder, device, params, eval_on_gold=eval_on_gold)
     
 
     # get scores
