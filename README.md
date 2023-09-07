@@ -1,7 +1,9 @@
 # GLEN: General-Purpose Event Detection
 - [GLEN: General-Purpose Event Detection](#glen-general-purpose-event-detection)
   - [Overview](#overview)
-  - [Quick Start: Docker](#quick-start-docker)
+  - [Quick Start](#quick-start)
+    - [Checkpoints](#checkpoints)
+    - [Docker](#docker)
   - [Data Format](#data-format)
   - [Reproduction](#reproduction)
     - [Setup](#setup)
@@ -12,7 +14,15 @@
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
 ***
 
-## Quick Start: Docker
+## Quick Start
+You can quickly use our model to do prediction on your data by either using the trained checkpoints or use a docker file.
+### Checkpoints
+```sh
+docker pull qiusi/glen_sentence # pull the image
+docker run --gpus all -p 5000:5000 qiusi/glen_sentence # Start the GLEN server
+```
+
+### Docker
 Coming soon!
 
 ## Data Format
