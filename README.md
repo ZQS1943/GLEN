@@ -6,7 +6,7 @@
   - [Reproduction](#reproduction)
     - [Setup](#setup)
     - [Model Training](#model-training)
-    - [Predict](#predict)
+    - [Evaluate](#evaluate)
 
 ## Overview
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
@@ -129,4 +129,13 @@ bash scripts/train_type_classifier.sh 1 ./exp/type_classifier_0/epoch_1/train_da
 # param2: the path to the training data
 ```
 
-### Predict
+### Evaluate
+
+To evaluate the Trigger Identification model, use
+```sh
+bash scripts/predict_trigger_identification.sh
+```
+To evaluate the Type Ranking model, use
+```sh
+bash scripts/predict_trigger_identification.sh
+```

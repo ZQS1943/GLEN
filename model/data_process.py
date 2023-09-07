@@ -142,7 +142,6 @@ def get_context_representation_multiple_mentions_idxs(
         "mention_idxs": mention_idxs,
         "original_input": input_ids_window,
         "ids_with_sent_tag": input_ids_with_sent_tag
-        # "pruned_ents": [1 for i in range(len(all_mentions)) if i < len(mention_idxs) else 0],  # pruned last N entities, TODO change if changed
     }
 
 
