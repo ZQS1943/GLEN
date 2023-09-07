@@ -103,7 +103,10 @@ def collate_fn_TR_Train(batch):
 def collate_fn_TR_Predict(batch):
     index = torch.tensor([x['index'] for x in batch], dtype=torch.long)
     context_vecs = torch.tensor([x['context_vecs'] for x in batch], dtype=torch.long)
-    return (context_vecs, index)
+    true_label = None
+    if 'true_label' in batch[0]:
+        true_label = [x['true_label'] for x in batch]
+    return (context_vecs, index, true_label)
 
 
 def collate_fn_TC(batch):

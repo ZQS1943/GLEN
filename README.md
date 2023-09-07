@@ -137,5 +137,12 @@ bash scripts/predict_trigger_identification.sh
 ```
 To evaluate the Type Ranking model, use
 ```sh
-bash scripts/predict_trigger_identification.sh
+bash scripts/predict_type_ranking.sh test_set
+# param1: the predicting data
+```
+To evaluate the Type Classification model, use
+```sh
+bash scripts/predict_type_classifier.sh 1 test_set
+# param1: the model number
+# param2: the predicting data
 ```

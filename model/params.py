@@ -3,7 +3,7 @@ import argparse
 def define_arguments(parser):
     parser.add_argument(
         "--seed",
-        default=25,
+        default=52313,
         type=int,
         help="random seed",
     )

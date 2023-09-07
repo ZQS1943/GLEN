@@ -20,7 +20,7 @@ with open(input_file, 'r') as f:
 def send_to_zoey():
     test_results = []
     for item in tqdm(predict_samples):
-        # if 'tc_types' not in item:
+        # if 'TC_results' not in item:
         #     continue
         tmp_item = {}
         tmp_item['sent_id'] = item['data_id']
@@ -32,7 +32,7 @@ def send_to_zoey():
         #  1==0
         predicted_results = []
         for event_id, predicted_trigger in enumerate(item['predicted_triggers']):
-            predicted_types = sorted(item['tc_types'][str(event_id)], key=lambda x:x[0], reverse=True)
+            predicted_types = sorted(item['TC_results'][str(event_id)], key=lambda x:x[0], reverse=True)
             node_to_prob = {node:prob for prob, node in predicted_types}
             if predicted_types[0][0] > threshold:
                 neighbour_nodes = {'parents':{}, 'children':{}}
@@ -121,7 +121,7 @@ def hit_k(c_m_p_threshold, eval_on_gold = False):
         else:
             trigger_iter = enumerate(item['predicted_triggers'])
         for event_id, predicted_trigger in trigger_iter:
-            predicted_types = sorted(item['tc_types'][str(event_id)], key=lambda x:x[0], reverse=True)
+            predicted_types = sorted(item['TC_results'][str(event_id)], key=lambda x:x[0], reverse=True)
             for gold_trigger, gold_type in gold_results:
                 if gold_trigger == predicted_trigger:
                     matched_trigger += 1
@@ -171,7 +171,7 @@ def get_score(c_m_p_threshold, eval_on_gold = False):
         else:
             trigger_iter = enumerate(item['predicted_triggers'])
         for event_id, predicted_trigger in trigger_iter:
-            predicted_types = sorted(item['tc_types'][str(event_id)], key=lambda x:x[0], reverse=True)
+            predicted_types = sorted(item['TC_results'][str(event_id)], key=lambda x:x[0], reverse=True)
             node_to_prob = {node:prob for prob, node in predicted_types}
             if predicted_types[0][0] > threshold:
                 top_1_node = predicted_types[0][1]

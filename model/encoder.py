@@ -661,16 +661,12 @@ class TriggerIdentifier(torch.nn.Module):
 
         mention_logits = context_outs['all_mention_logits']
         mention_bounds = context_outs['all_mention_bounds']
-        # print(mention_logits, mention_logits.shape)
-        # print(mention_bounds, mention_bounds.shape)
         
 
         if not return_loss:
             return None, mention_logits, mention_bounds
 
-        '''
-        COMPUTE mention LOSS (TRAINING MODE)
-        '''
+
         span_loss = self.get_span_loss(
             gold_mention_bounds=gold_mention_bounds, 
             gold_mention_bounds_mask=gold_mention_bounds_mask,

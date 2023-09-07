@@ -14,7 +14,7 @@ from model.params import parse_arguments
 import pickle as pkl
 from model.dataset import TCdataset, collate_fn_TC
 from model.utils import read_dataset
-from model.data_process import process_data_TC_predict_w_token_ids
+from model.data_process import process_data_TC_predict_for_train, process_data_TC_predict
 
 def evaluate(type_classifier, test_dataloader, device, params, out_name = ''):
     output_path =f"{params['output_path']}/bts_predict_scores_{out_name}.pkl"
@@ -99,91 +99,37 @@ def predict_train_set(type_classifier, test_dataloader, device, params, output_p
     with open(output_path, 'w') as f:
         f.write(json.dumps(train_samples))
 
-def get_predict_dataloder(params, predict_samples, k = 10, eval_on_gold=False):
-    if params['data_truncation'] != -1:
-        predict_samples = predict_samples[:params['data_truncation']]
-    processed_predict_samples = []
-    max_context_length = params['max_context_length']
-    prefix_template = f"⟨type⟩ is defined as ⟨definition⟩."
-    suffix_template = f"Does ⟨trigger⟩ indicate a ⟨type⟩ event? [MASK]"
-    cnt_events = 0
-    for item_id, item in tqdm(enumerate(predict_samples)):
-        types_for_sentence = item['top_20_events'][:k]
-        if eval_on_gold:
-            trigger_iter = enumerate(item['context']['mention_idxs'])
-        else:
-            trigger_iter = enumerate(item['predicted_triggers'])
-        for eid, trigger in trigger_iter:
-            cnt_events += 1
-            trigger_words = ' '.join(item['context']['tokens'][trigger[0]:trigger[1] + 1]).replace(' ##', '')
-            for node in types_for_sentence:
-                name, des, _ = id2node_detail[node]
-                if des is None:
-                    des = ''
-                prefix = prefix_template.replace('⟨type⟩', name).replace('⟨definition⟩', des)
-                suffix = suffix_template.replace('⟨trigger⟩', trigger_words).replace('⟨type⟩', name)
-                prefix_id = tokenizer.encode(prefix)
-                suffix_id = tokenizer.encode(suffix)
-                input_ids = prefix_id + item['context']['original_input'] + suffix_id
-                mask_token_id = len(input_ids)
-                if len(input_ids) > max_context_length - 2:
-                    print(input_ids)
-                    assert 1==0
-                input_ids = [101] + input_ids + [102] + [0]*(max_context_length - 2 - len(input_ids))
-                assert len(input_ids) == max_context_length
-                mask_token_mask = [0]*max_context_length
-                mask_token_mask[mask_token_id] = 1
-                processed_predict_samples.append({
-                    'id': item_id,
-                    'event_idx': eid,
-                    'event_id': node,
-                    'input_ids': input_ids,
-                    'label': -1,
-                    'mask_token_mask':mask_token_mask
-                })
-    print(f"get {len(processed_predict_samples)} predicting data from {cnt_events} events")
-
-    predict_set = TCdataset(processed_predict_samples)
-    predcit_dataloader = DataLoader(predict_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
-    return predcit_dataloader
-
-def evaluate_final_score(type_classifier, predict_samples, test_dataloader, device, params, eval_on_gold=False):
+def evaluate_final_score(type_classifier, predict_samples, test_dataloader, device, params, output_path, eval_on_gold=False):
     results = []
     case_ids = []
     event_ids = []
     with torch.no_grad():
         type_classifier.eval()
         for batch in tqdm(test_dataloader):
-            data_id,event_idx,event_id,input_ids,labels, mask_token_mask = batch
+            data_id,event_idx,event_id,input_ids,_, mask_token_mask = batch
             input_ids = input_ids.to(device)
-            # labels = labels.to(device)
             mask_token_mask = mask_token_mask.to(device)
-            yes_scores,_ = type_classifier(input_ids, mask_token_mask, labels=labels, return_loss=False)
+            yes_scores,_ = type_classifier(input_ids, mask_token_mask, return_loss=False)
             yes_scores = yes_scores.detach().cpu()
             results.append(yes_scores)
             event_ids.extend(event_id)
             case_ids.extend(list(zip(data_id, event_idx)))
-            # print(yes_no_scores, yes_no_scores.shape)
-            # break
-    
     results = torch.cat(results)
+
     results_dict = defaultdict(list)
     for score, label, case_id in zip(results, event_ids, case_ids):
         results_dict[case_id].append((float(score), label))
     
     for case_id in results_dict:
         sentence_id, event_id = case_id
-        if 'tc_types' not in predict_samples[sentence_id]:
-            predict_samples[sentence_id]['tc_types'] = {}
-        predict_samples[sentence_id]['tc_types'][event_id] = results_dict[case_id]
+        if 'TC_results' not in predict_samples[sentence_id]:
+            predict_samples[sentence_id]['TC_results'] = {}
+        predict_samples[sentence_id]['TC_results'][event_id] = results_dict[case_id]
     
-    output_file_name = f"{params['output_path']}/TC_and_TR_and_TD_results_annotated_test_no_other.json"
-    if eval_on_gold:
-        output_file_name = f"{params['output_path']}/TC_and_TR_and_TD_results_annotated_test_no_other_eval_on_gold.json"
-    with open(output_file_name, 'w') as f:
+    with open(output_path, 'w') as f:
         f.write(json.dumps(predict_samples))
     
-    return results_dict
+    return predict_samples
 
 
 if __name__ == "__main__":
@@ -206,11 +152,20 @@ if __name__ == "__main__":
     if params['predict_set'] == 'train_set':
         with open(params['TC_train_data_path'], 'r') as f:
             train_samples = json.load(f)
-        processed_samples = process_data_TC_predict_w_token_ids(params, train_samples, tokenizer)
+        processed_samples = process_data_TC_predict_for_train(params, train_samples, tokenizer)
         predict_set = TCdataset(processed_samples)
         predict_dataloder = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TC)
-        output_path = os.path.join(params['output_path'],"train_data_for_TC.jsonl")
+        output_path = os.path.join(params['output_path'],"train_data_for_TC.json")
         predict_train_set(type_classifier, predict_dataloder, device, params, output_path, train_samples)
+    elif params['predict_set'] == 'test_set':
+        with open('./exp/type_ranking/epoch_4/TI_TR_result.json', 'r') as f:
+            predict_samples = json.load(f)
+        processed_samples = process_data_TC_predict(params, predict_samples, tokenizer, eval_on_gold=False)
+        predict_set = TCdataset(processed_samples)
+        predict_dataloder = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TC)
+        output_path = os.path.join(params['output_path'],"TI_TR_TC_result.jsonl")
+        results_dict = evaluate_final_score(type_classifier, predict_samples, predict_dataloder, device, params, output_path, eval_on_gold=False)
+        
 
     # evaluate on dev set
     # dev_samples = read_dataset("annotated_dev_set", params, tokenizer, yes_no_format = True)

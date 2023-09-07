@@ -374,7 +374,7 @@ def process_data_TC_train(params, train_samples, tokenizer):
     print(f"get {len(processed_samples)} training data (one candidated: {cnt_one_cand} + predicted: {cnt_predicted}) from {cnt_events} events")
     return processed_samples
 
-def process_data_TC_predict_w_token_ids(params, train_samples, tokenizer):
+def process_data_TC_predict_for_train(params, train_samples, tokenizer):
     print("Data Processing ...")
     cnt_events = 0
     processed_samples = []
@@ -398,5 +398,31 @@ def process_data_TC_predict_w_token_ids(params, train_samples, tokenizer):
                     'mask_token_mask':mask_token_mask
                 })
     print(f"get {len(processed_samples)} training data from {cnt_events} events")
+    return processed_samples
+
+def process_data_TC_predict(params, predict_samples, tokenizer, eval_on_gold=True):
+    print("Data Processing ...")
+    cnt_events = 0
+    processed_samples = []
+    for item_id, item in tqdm(enumerate(predict_samples)):
+        types_for_sentence = item['top_20_events'][:params['k']]
+        if eval_on_gold:
+            trigger_iter = enumerate(item['context']['mention_idxs'])
+        else:
+            trigger_iter = enumerate(item['predicted_triggers'])
+        
+        for eid, trigger in trigger_iter:
+            cnt_events += 1
+            for node in types_for_sentence:
+                input_ids, mask_token_mask = create_TC_input(node, item, trigger, tokenizer, params['max_context_length'])
+                processed_samples.append({
+                    'id': item_id,
+                    'event_idx': eid,
+                    'event_id': node,
+                    'input_ids': input_ids,
+                    'label': -1,
+                    'mask_token_mask':mask_token_mask
+                })
+    print(f"get {len(processed_samples)} predicting data from {cnt_events} events")
     return processed_samples
 

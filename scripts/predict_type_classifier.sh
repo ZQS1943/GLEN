@@ -10,4 +10,5 @@ python model/predict_type_classifier.py \
     --max_context_length 512 \
     --TC_train_data_path ${data_path} \
     --predict_set ${data} \
-    --eval_batch_size 64
+    --eval_batch_size 64 \
+    --k 10
