@@ -13,7 +13,7 @@ This repository contains the code of the paper titled ["GLEN: General-Purpose Ev
 ***
 
 ## Quick Start: Docker
-Docker link
+Coming soon!
 
 ## Data Format
 Each data file in ./data/data_split is in json format, which contain a list of data instances. 
