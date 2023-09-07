@@ -15,7 +15,8 @@ This repository contains the code of the paper titled ["GLEN: General-Purpose Ev
 ***
 
 ## Quick Start
-You can quickly use our model to do prediction on your data by either using the trained checkpoints or use a docker file.
+You can quickly deploy our model by either using the trained checkpoints or utilizing a Docker image.
+
 ### Checkpoints
 ```sh
 docker pull qiusi/glen_sentence # pull the image
