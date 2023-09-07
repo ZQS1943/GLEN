@@ -3,6 +3,10 @@
 round=$1 # 0, 1
 data=$2 # train_set, dev_set, test_set
 data_path=$3 # data path to the training data
+if [ "${data_path}" = "" ]
+then
+    data_path="None"
+fi
 
 python model/predict_type_classifier.py \
     --path_to_model ./exp/type_classifier_${round}/epoch_1/pytorch_model.bin \

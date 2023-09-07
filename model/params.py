@@ -88,6 +88,12 @@ def define_arguments(parser):
         help="In self-labeling for type classifier, only selecting cases whose P(top1 event) - P(top2 event) >= threshold ",
     )
     parser.add_argument(
+        "--c_m_p_threshold",
+        default=0.65,
+        type=float,
+        help="threshhold for hierarchy filtering",
+    )
+    parser.add_argument(
         "--num_train_epochs",
         default=1,
         type=int,

@@ -9,6 +9,7 @@
     - [Setup](#setup)
     - [Model Training](#model-training)
     - [Evaluate](#evaluate)
+    - [Predict](#predict)
 
 ## Overview
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
@@ -142,18 +143,17 @@ bash scripts/train_type_classifier.sh 1 ./exp/type_classifier_0/epoch_1/train_da
 
 ### Evaluate
 
-To evaluate the Trigger Identification model, use
+To evaluate the whole piprline, use
 ```sh
 bash scripts/predict_trigger_identification.sh
-```
-To evaluate the Type Ranking model, use
-```sh
 bash scripts/predict_type_ranking.sh test_set
 # param1: the predicting data
-```
-To evaluate the Type Classification model, use
-```sh
 bash scripts/predict_type_classifier.sh 1 test_set
 # param1: the model number
 # param2: the predicting data
 ```
+
+### Predict
+
+To predict on your own data, use
+

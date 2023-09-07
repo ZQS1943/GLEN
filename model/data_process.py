@@ -405,7 +405,7 @@ def process_data_TC_predict(params, predict_samples, tokenizer, eval_on_gold=Tru
     cnt_events = 0
     processed_samples = []
     for item_id, item in tqdm(enumerate(predict_samples)):
-        types_for_sentence = item['top_20_events'][:params['k']]
+        types_for_sentence = item['top_events'][:params['k']]
         if eval_on_gold:
             trigger_iter = enumerate(item['context']['mention_idxs'])
         else:

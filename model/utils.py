@@ -5,8 +5,8 @@ import torch
 from pytorch_transformers.modeling_utils import CONFIG_NAME, WEIGHTS_NAME
 from tqdm import tqdm
 from torch.utils.data import DataLoader,TensorDataset
-from data_process import process_mention_data, process_data_TC_predict_w_sentence
-from model.constants import xpo_used
+from model.data_process import process_mention_data, process_data_TC_predict_w_sentence
+from model.constants import xpo_used, id2node_detail, node_relation
 
 
 def padding_with_multiple_dim(data, pad_idx=-1, dtype=torch.long):
@@ -169,3 +169,131 @@ def save_model(model, tokenizer, output_dir):
 def write_to_file(path, string, mode="w"):
     with open(path, mode) as f:
         f.write(string)
+
+def evaluate_final_score(predict_samples, params, eval_on_gold = False):
+    c_m_p_threshold = params['c_m_p_threshold']
+    num_TD_correct = 0
+    num_TD_gold = 0
+    num_TD_predict = 0
+
+    num_TC_correct = 0
+    num_TC_gold = 0
+    num_TC_predict = 0
+
+    test_results = []
+    for item in tqdm(predict_samples):
+        tmp_item = {}
+        tmp_item['sent_id'] = item['data_id']
+        tokens = item['context']['tokens']
+        tmp_item['sentence'] = ' '.join(tokens[1:-1]).replace(' ##', '')
+        tmp_item['events'] = {}
+        predicted_results = []
+        if eval_on_gold:
+            trigger_iter = enumerate(item['context']['mention_idxs'])
+        else:
+            trigger_iter = enumerate(item['predicted_triggers'])
+        for event_id, predicted_trigger in trigger_iter:
+            predicted_types = sorted(item['TC_results'][str(event_id)], key=lambda x:x[0], reverse=True)
+            node_to_prob = {node:prob for prob, node in predicted_types}
+            top_1_node = predicted_types[0][1]
+            for node in node_relation[top_1_node]['parents']:
+                if node in node_to_prob and predicted_types[0][0] - node_to_prob[node] < c_m_p_threshold:
+                    predicted_results.append((predicted_trigger, node))
+                    break
+            else:
+                predicted_results.append((predicted_trigger, top_1_node))    
+        gold_results = list(zip(item['context']['mention_idxs'], item['true_label']))
+
+        def add_to_results(results, key_name = 'pred'):
+            for trigger_id, e_type in results:
+                trigger_word = tokens[trigger_id[0]: trigger_id[1] + 1]
+                trigger_word = ' '.join(trigger_word).replace(' ##', '')
+
+                trigger_id = f'{trigger_word}({trigger_id[0]}-{trigger_id[1] + 1})'
+                if trigger_id not in tmp_item['events']:
+                    tmp_item['events'][trigger_id] = {}
+                name, des, _ = id2node_detail[e_type]
+                tmp_item['events'][trigger_id][key_name] = f'{name}: {des}'
+
+        add_to_results(predicted_results, 'pred')
+        add_to_results(gold_results, 'gold')
+
+        gold_trigger = set(tuple(x[0]) for x in gold_results)
+        assert len(gold_trigger) == len(gold_results)
+        
+        for p_trigger, p_etype in predicted_results:
+            for g_trigger, g_etype in gold_results:
+                if g_trigger == p_trigger:
+                    num_TD_correct += 1
+                    num_TC_gold += 1
+                    num_TC_predict += 1
+                    if p_etype == g_etype:
+                        num_TC_correct += 1
+                    break
+        num_TD_predict += len(predicted_results)
+        num_TD_gold += len(gold_results)
+        
+        test_results.append(tmp_item)
+
+    scores = {}
+    print(num_TD_correct, num_TD_gold, num_TD_predict)
+    print(num_TC_correct, num_TC_gold, num_TC_predict)
+    scores['num_TI_correct'] = num_TD_correct
+    scores['num_TI_gold'] = num_TD_gold
+    scores['num_TI_predict'] = num_TD_predict
+    scores['num_TC_correct'] = num_TC_correct
+
+    scores["TI_prec"] = num_TD_correct/num_TD_predict
+    scores["TI_recall"] = num_TD_correct/num_TD_gold
+    scores["TI_F1"] = 2 * scores["TI_prec"] * scores["TI_recall"] / (scores["TI_prec"] + scores["TI_recall"])
+    scores["TC_accuracy"] = num_TC_correct/num_TD_correct
+    scores["TC_prec"] = num_TC_correct/num_TD_predict
+    scores["TC_recall"] = num_TC_correct/num_TD_gold
+    scores["TC_F1"] = 2 * scores["TC_prec"] * scores["TC_recall"] / (scores["TC_prec"] + scores["TC_recall"])
+    print(json.dumps(scores, indent=True))
+
+def hit_k(predict_samples, eval_on_gold = False):
+    matched_trigger = 0
+    hit_at_k_cnt = {x:0 for x in [1,2,5,10]}
+    hit_at_k_cnt_in_top_10 = {x:0 for x in [1,2,5,10]}
+    matched_trigger_in_top_10 = 0
+
+    for item in tqdm(predict_samples):
+        tmp_item = {}
+        tmp_item['sent_id'] = item['data_id']
+        tokens = item['context']['tokens']
+        tmp_item['sentence'] = ' '.join(tokens[1:-1]).replace(' ##', '')
+        tmp_item['events'] = {}
+
+        gold_results = list(zip(item['context']['mention_idxs'], item['true_label']))
+        if eval_on_gold:
+            trigger_iter = enumerate(item['context']['mention_idxs'])
+        else:
+            trigger_iter = enumerate(item['predicted_triggers'])
+        for event_id, predicted_trigger in trigger_iter:
+            predicted_types = sorted(item['TC_results'][str(event_id)], key=lambda x:x[0], reverse=True)
+            for gold_trigger, gold_type in gold_results:
+                if gold_trigger == predicted_trigger:
+                    matched_trigger += 1
+                    in_top_10 = gold_type in [x[1] for x in predicted_types]
+                    if in_top_10:
+                        matched_trigger_in_top_10 += 1
+                    for k in hit_at_k_cnt:
+                        k_types = [x[1] for x in predicted_types[:k]]
+                        if gold_type in k_types:
+                            hit_at_k_cnt[k] += 1
+                            if in_top_10:
+                                hit_at_k_cnt_in_top_10[k] += 1
+                    break
+            
+
+
+    scores = {}
+    scores['matched_trigger'] = matched_trigger
+    scores['matched_trigger_in_top_10'] = matched_trigger_in_top_10
+    for k in hit_at_k_cnt:
+        scores[f"Hit@{k}"] = hit_at_k_cnt[k]/matched_trigger
+    for k in hit_at_k_cnt_in_top_10:
+        scores[f"Hit@{k}_in_top_10"] = hit_at_k_cnt_in_top_10[k]/matched_trigger_in_top_10
+    print(json.dumps(scores, indent=True))
+
