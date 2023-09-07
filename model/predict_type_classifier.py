@@ -1,5 +1,6 @@
 import sys
 sys.path.append('./')
+import os
 import torch
 import json
 import random
@@ -9,10 +10,11 @@ from collections import defaultdict
 from torch.utils.data import DataLoader
 
 from model.encoder import TypeClassifier
-from model.params import parse_arguments, id2node_detail
+from model.params import parse_arguments
 import pickle as pkl
 from model.dataset import TCdataset, collate_fn_TC
 from model.utils import read_dataset
+from model.data_process import process_data_TC_predict_w_token_ids
 
 def evaluate(type_classifier, test_dataloader, device, params, out_name = ''):
     output_path =f"{params['output_path']}/bts_predict_scores_{out_name}.pkl"
@@ -55,100 +57,47 @@ def evaluate(type_classifier, test_dataloader, device, params, out_name = ''):
             correct_num += 1
     print(f'accuracy of label selection: {correct_num/len(results_dict)}, #cases: {len(results_dict)}')
     return correct_num/len(results_dict)
-    # print(results, results.shape)
-    # print(gold_labels, gold_labels.shape)
-    for th in torch.linspace(0.5, 1.0, 20):
-        print('*'*10)
-        print(f"threshold of yes score: {th}")
-        yes_label = torch.where(results >= th, 1, 0)
-        # print(yes_label)
-        # print(yes_label == gold_labels)
-        correct_num = torch.sum(yes_label == gold_labels)
-        # print(correct_num)
-        print(f"accuracy: {float(correct_num/len(yes_label))}; total num: {len(yes_label)}")
-    assert 1==0
 
-def predict_train_set(type_classifier, test_dataloader, device, params, events_list):
-    output_path =f"{params['output_path']}/bts_prediction_results_on_trainset.jsonl"
+def predict_train_set(type_classifier, test_dataloader, device, params, output_path, train_samples):
     results = []
     case_ids = []
     with torch.no_grad():
         type_classifier.eval()
         for batch in tqdm(test_dataloader):
-            data_id,event_idx,event_id,input_ids, _ , mask_token_mask = batch
-            # print(batch)
+            data_id,event_idx,_,input_ids, _ , mask_token_mask = batch
             input_ids = input_ids.to(device)
-            # labels = labels.to(device)
             mask_token_mask = mask_token_mask.to(device)
-            yes_scores,_ = type_classifier(input_ids, mask_token_mask,return_loss=False)
+            yes_scores, _ = type_classifier(input_ids, mask_token_mask,return_loss=False)
+
             yes_scores = yes_scores.detach().cpu()
             results.append(yes_scores)
             case_ids.extend(list(zip(data_id, event_idx)))
-            # print(yes_no_scores, yes_no_scores.shape)
-            # break
-    
     results = torch.cat(results)
+
     results_dict = defaultdict(list)
     for score, case_id in zip(results, case_ids):
         results_dict[case_id].append(float(score))
-    # print(results_dict)
+
+    cnt_selected_events = 0
+    print("Result Processing ...")
+    for case_id in tqdm(results_dict):
+        scores_list = results_dict[case_id]
+        data_id, event_idx = case_id
+
+        candidate_set = train_samples[data_id]['label_idx'][event_idx]
+        sorted_cands = sorted(list(zip(candidate_set, scores_list)), key=lambda x:x[1], reverse=True)
+
+        if sorted_cands[0][1] - sorted_cands[1][1] < params['threshold']:
+            continue
+        
+        if 'labels_predicted_by_TC' not in train_samples[data_id]:
+            train_samples[data_id]['labels_predicted_by_TC'] = {}
+        train_samples[data_id]['labels_predicted_by_TC'][event_idx] = sorted_cands[0][0]
+        cnt_selected_events += 1
+    print(f"get {cnt_selected_events} new training events")
+
     with open(output_path, 'w') as f:
-        for key in events_list:
-            f.write(json.dumps({'sent_id': key[0], 'event_id': key[1], 'scores': results_dict[key]}) + '\n')
-
-def get_train_dataloder(params):
-    with open(params['TC_train_data_path'], 'r') as f:
-        train_samples = json.load(f)
-    
-    max_context_length = params['max_context_length']
-
-    prefix_template = f"⟨type⟩ is defined as ⟨definition⟩."
-    suffix_template = f"Does ⟨trigger⟩ indicate a ⟨type⟩ event? [MASK]"
-
-    cnt_events = 0
-    events_list = []
-    processed_train_samples = []
-    for item in tqdm(train_samples):
-        for eid, (trigger, candidate_set) in enumerate(zip(item['context']['mention_idxs'], item['label_idx'])):
-            if len(candidate_set) <= 1:
-                continue
-            cnt_events += 1
-            events_list.append((item['data_id'], eid))
-            for node in candidate_set:
-                name, des, _ = id2node_detail[node]
-                # print(node, name, des)
-                if des is None:
-                    des = ''
-                trigger_words = ' '.join(item['context']['tokens'][trigger[0]:trigger[1] + 1]).replace(' ##', '')
-                prefix = prefix_template.replace('⟨type⟩', name).replace('⟨definition⟩', des)
-                # print(prefix)
-                suffix = suffix_template.replace('⟨trigger⟩', trigger_words).replace('⟨type⟩', name)
-                # print(suffix)
-                prefix_id = tokenizer.encode(prefix)
-                suffix_id = tokenizer.encode(suffix)
-                input_ids = prefix_id + item['context']['original_input'] + suffix_id
-                # print(input_ids)
-                mask_token_id = len(input_ids)
-                if len(input_ids) > max_context_length - 2:
-                    print(input_ids)
-                    assert 1==0
-                input_ids = [101] + input_ids + [102] + [0]*(max_context_length - 2 - len(input_ids))
-                assert len(input_ids) == max_context_length
-                mask_token_mask = [0]*max_context_length
-                mask_token_mask[mask_token_id] = 1
-                processed_train_samples.append({
-                    'id': item['data_id'],
-                    'event_idx': eid,
-                    'event_id': node,
-                    'input_ids': input_ids,
-                    'label': -1,
-                    'mask_token_mask':mask_token_mask
-                })
-    print(f"get {len(processed_train_samples)} training data from {cnt_events} events")
-
-    predict_set = TCdataset(processed_train_samples)
-    predcit_dataloader = DataLoader(predict_set, batch_size=params["eval_batch_size"], shuffle=False, collate_fn=collate_fn_TC)
-    return predcit_dataloader, events_list
+        f.write(json.dumps(train_samples))
 
 def get_predict_dataloder(params, predict_samples, k = 10, eval_on_gold=False):
     if params['data_truncation'] != -1:
@@ -257,8 +206,11 @@ if __name__ == "__main__":
     if params['predict_set'] == 'train_set':
         with open(params['TC_train_data_path'], 'r') as f:
             train_samples = json.load(f)
-        predict_dataloder, events_list = get_train_dataloder(params)
-        predict_train_set(type_classifier, predict_dataloder, device, params, events_list)
+        processed_samples = process_data_TC_predict_w_token_ids(params, train_samples, tokenizer)
+        predict_set = TCdataset(processed_samples)
+        predict_dataloder = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TC)
+        output_path = os.path.join(params['output_path'],"train_data_for_TC.jsonl")
+        predict_train_set(type_classifier, predict_dataloder, device, params, output_path, train_samples)
 
     # evaluate on dev set
     # dev_samples = read_dataset("annotated_dev_set", params, tokenizer, yes_no_format = True)
@@ -274,12 +226,12 @@ if __name__ == "__main__":
 
 
     # evaluate on annotated test set based on TR and TD results
-    eval_on_gold = True
-    # eval_on_gold = False
-    with open('./exp/experiments_type_ranking/se_id_new_loss_new_ontology/bert_base/epoch_4/TR_and_TD_results_annotated_test_no_other.json', 'r') as f:
-        predict_samples = json.load(f)
-    predict_dataloder = get_predict_dataloder(params, predict_samples, eval_on_gold=eval_on_gold)
-    results_dict = evaluate_final_score(type_classifier, predict_samples, predict_dataloder, device, params, eval_on_gold=eval_on_gold)
+    # eval_on_gold = True
+    # # eval_on_gold = False
+    # with open('./exp/experiments_type_ranking/se_id_new_loss_new_ontology/bert_base/epoch_4/TR_and_TD_results_annotated_test_no_other.json', 'r') as f:
+    #     predict_samples = json.load(f)
+    # predict_dataloder = get_predict_dataloder(params, predict_samples, eval_on_gold=eval_on_gold)
+    # results_dict = evaluate_final_score(type_classifier, predict_samples, predict_dataloder, device, params, eval_on_gold=eval_on_gold)
     
 
     # get scores

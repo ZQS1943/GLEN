@@ -11,8 +11,7 @@ from torch.utils.data import DataLoader
 
 from model.optimizer import get_optimizer
 from model.params import parse_arguments
-from model.utils import read_dataset, write_to_file, save_model
-from model.constants import id2node_detail
+from model.utils import write_to_file, save_model
 from model.encoder import TypeClassifier
 from model.dataset import TCdataset, collate_fn_TC
 from model.data_process import process_data_TC_train
@@ -41,7 +40,7 @@ def training(params):
     if params['data_truncation'] != -1:
         train_samples = train_samples[:params['data_truncation']]
     
-    processed_train_samples = process_data_TC_train(params, train_samples, id2node_detail, tokenizer)
+    processed_train_samples = process_data_TC_train(params, train_samples, tokenizer)
 
     
     grad_acc_steps = params["gradient_accumulation_steps"]
@@ -70,7 +69,7 @@ def training(params):
 
     print("Model Training ...")
     type_classifier.train() 
-    for epoch_idx in trange(1, int(num_train_epochs), desc="Epoch"):
+    for epoch_idx in trange(0, num_train_epochs, desc="Epoch"):
         tr_loss = 0
         type_classifier.train()
         pbar = tqdm(total=len(train_dataloader))

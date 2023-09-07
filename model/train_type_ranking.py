@@ -51,7 +51,7 @@ def main(params):
     print("Model Training ...")
     type_ranking.train()
     time_start = time.time()
-    for epoch_idx in trange(1, int(num_train_epochs), desc="Epoch"):
+    for epoch_idx in trange(0, num_train_epochs, desc="Epoch"):
         tr_loss = 0
         pbar = tqdm(total=len(train_dataloader))
         for step, batch in enumerate(train_dataloader):

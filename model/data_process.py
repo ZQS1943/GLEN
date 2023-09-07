@@ -1,7 +1,7 @@
 import os
 import torch
 from collections import defaultdict
-from constants import roleset2id, SENT_TAG, EVENT_TAG
+from constants import roleset2id, SENT_TAG, EVENT_TAG, id2node_detail
 from tqdm import tqdm
 
 def sort_mentions(
@@ -309,7 +309,7 @@ def process_data_TC_predict_w_sentence(
     print(f"get {len(processed_samples)} samples")
     return processed_samples
 
-def create_TC_input(id2node_detail, node, item, trigger, tokenizer, max_context_length):
+def create_TC_input(node, item, trigger, tokenizer, max_context_length):
     prefix_template = f"⟨type⟩ is defined as ⟨definition⟩."
     suffix_template = f"Does ⟨trigger⟩ indicate a ⟨type⟩ event? [MASK]"
 
@@ -335,7 +335,7 @@ def create_TC_input(id2node_detail, node, item, trigger, tokenizer, max_context_
     mask_token_mask[mask_token_id] = 1
     return input_ids, mask_token_mask
 
-def process_data_TC_train(params, train_samples, id2node_detail, tokenizer):
+def process_data_TC_train(params, train_samples, tokenizer):
     cnt_events = 0
     cnt_one_cand = 0
     cnt_predicted = 0
@@ -360,7 +360,7 @@ def process_data_TC_train(params, train_samples, id2node_detail, tokenizer):
                 if node == gt_node:
                     label = 1
                 
-                input_ids, mask_token_mask = create_TC_input(id2node_detail, node, item, trigger, tokenizer, params['max_context_length'])
+                input_ids, mask_token_mask = create_TC_input(node, item, trigger, tokenizer, params['max_context_length'])
                 if input_ids is None:
                     continue
                 
@@ -375,24 +375,23 @@ def process_data_TC_train(params, train_samples, id2node_detail, tokenizer):
     print(f"get {len(processed_samples)} training data (one candidated: {cnt_one_cand} + predicted: {cnt_predicted}) from {cnt_events} events")
     return processed_samples
 
-def process_data_TC_predict_w_token_ids(params, train_samples, id2node_detail, tokenizer):
+def process_data_TC_predict_w_token_ids(params, train_samples, tokenizer):
+    print("Data Processing ...")
     cnt_events = 0
-    events_list = []
     processed_samples = []
-    for item in tqdm(train_samples):
+    for item_idx, item in tqdm(enumerate(train_samples)):
         for eid, (trigger, candidate_set) in enumerate(zip(item['context']['mention_idxs'], item['label_idx'])):
             if len(candidate_set) <= 1:
                 # only predict cases with multiple candidates
                 continue
             cnt_events += 1
-            events_list.append((item['data_id'], eid))
             for node in candidate_set:
-                input_ids, mask_token_mask = create_TC_input(id2node_detail, node, item, trigger, tokenizer, params['max_context_length'])
+                input_ids, mask_token_mask = create_TC_input(node, item, trigger, tokenizer, params['max_context_length'])
                 if input_ids is None:
                     continue
 
                 processed_samples.append({
-                    'id': item['data_id'],
+                    'id': item_idx,
                     'event_idx': eid,
                     'event_id': node,
                     'input_ids': input_ids,

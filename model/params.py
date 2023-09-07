@@ -82,6 +82,12 @@ def define_arguments(parser):
         help="The initial learning rate for Adam.",
     )
     parser.add_argument(
+        "--threshold",
+        default=0.9,
+        type=float,
+        help="In self-labeling for type classifier, only selecting cases whose P(top1 event) - P(top2 event) >= threshold ",
+    )
+    parser.add_argument(
         "--num_train_epochs",
         default=1,
         type=int,

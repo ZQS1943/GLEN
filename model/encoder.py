@@ -540,10 +540,6 @@ class TypeClassifier(torch.nn.Module):
             self.load_state_dict(torch.load(model_path))
 
         self.model = self.model.to(self.device)
-        self.data_parallel = params.get("data_parallel")
-        if self.data_parallel:
-            self.model = torch.nn.DataParallel(self.model)
-
         self.loss_fact = nn.BCELoss()
 
     def forward(self, input_ids, mask_token_mask, labels = None,return_loss=True):

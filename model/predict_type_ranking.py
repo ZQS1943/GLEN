@@ -90,12 +90,12 @@ if __name__ == "__main__":
     type_ranking = TypeRanking(params)
     tokenizer = type_ranking.tokenizer
     device = type_ranking.device
-    
+
     eval_batch_size = params["eval_batch_size"]
 
     if params['predict_set'] == 'train_set':
         predict_samples = read_dataset("train", params, tokenizer, add_sent_event_token=True)
-        output_file = os.path.join(params['output_path'], f'type_ranking_results_of_train_set_with_top_{params["k"]}_events.json')
+        output_file = os.path.join(params['output_path'], f'train_data_for_TC.json')
         predict_set = TITRdataset(predict_samples, with_sent_tag=True, only_sen_w_events=True)
         predict_samples = predict_set.data
 
