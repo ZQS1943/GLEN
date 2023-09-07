@@ -18,13 +18,13 @@ This repository contains the code of the paper titled ["GLEN: General-Purpose Ev
 You can quickly deploy our model by either using the trained checkpoints or utilizing a Docker image.
 
 ### Checkpoints
+Coming soon!
+
+### Docker
 ```sh
 docker pull qiusi/glen_sentence # pull the image
 docker run --gpus all -p 5000:5000 qiusi/glen_sentence # Start the GLEN server
 ```
-
-### Docker
-Coming soon!
 
 ## Data Format
 Each data file in ./data/data_split is in json format, which contain a list of data instances. 
