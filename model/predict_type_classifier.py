@@ -1,5 +1,3 @@
-import sys
-sys.path.append('./')
 import os
 import torch
 import json
@@ -117,6 +115,7 @@ if __name__ == "__main__":
     elif params['predict_set'] == 'test_set':
         with open('./exp/type_ranking/epoch_4/TI_TR_result.json', 'r') as f:
             predict_samples = json.load(f)
+            predict_samples = predict_samples[:10]
         processed_samples = process_data_TC_predict(params, predict_samples, tokenizer, eval_on_gold=False)
         predict_set = TCdataset(processed_samples)
         predict_dataloder = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TC)

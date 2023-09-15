@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+export PYTHONPATH=./
 round=$1 # 0, 1
 data=$2 # train_set, dev_set, test_set
 data_path=$3 # data path to the training data

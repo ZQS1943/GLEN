@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+export PYTHONPATH=./
 data=$1 # train_set, dev_set, test_set
 
 python model/predict_type_ranking.py \

@@ -271,7 +271,9 @@ def hit_k(predict_samples, eval_on_gold = False):
         else:
             trigger_iter = enumerate(item['predicted_triggers'])
         for event_id, predicted_trigger in trigger_iter:
-            predicted_types = sorted(item['TC_results'][str(event_id)], key=lambda x:x[0], reverse=True)
+            print(item['TC_results'])
+            print(event_id, type(event_id))
+            predicted_types = sorted(item['TC_results'][int(event_id)], key=lambda x:x[0], reverse=True)
             for gold_trigger, gold_type in gold_results:
                 if gold_trigger == predicted_trigger:
                     matched_trigger += 1

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+export PYTHONPATH=./
 round=$1 # 0, 1
 data_path=$2 # data path to the trianing data
 

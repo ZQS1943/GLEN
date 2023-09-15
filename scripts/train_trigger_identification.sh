@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+export PYTHONPATH=./
 python model/train_trigger_identifier.py \
     --output_path ./exp/trigger_identifier/ \
     --num_train_epochs 5 \
