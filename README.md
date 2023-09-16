@@ -1,31 +1,17 @@
 # GLEN: General-Purpose Event Detection
 - [GLEN: General-Purpose Event Detection](#glen-general-purpose-event-detection)
   - [Overview](#overview)
-  - [Quick Start](#quick-start)
-    - [Checkpoints](#checkpoints)
-    - [Docker](#docker)
   - [Data Format](#data-format)
   - [Reproduction](#reproduction)
     - [Setup](#setup)
+    - [Predict](#predict)
     - [Model Training](#model-training)
     - [Evaluate](#evaluate)
-    - [Predict](#predict)
+  - [Docker](#docker)
 
 ## Overview
 This repository contains the code of the paper titled ["GLEN: General-Purpose Event Detection for Thousands of Types"](https:#arxiv.org/pdf/2303.09093.pdf).
 ***
-
-## Quick Start
-You can quickly deploy our model by either using the trained checkpoints or utilizing a Docker image.
-
-### Checkpoints
-Coming soon!
-
-### Docker
-```sh
-docker pull qiusi/glen_sentence # pull the image
-docker run --gpus all -p 5000:5000 qiusi/glen_sentence # Start the GLEN server
-```
 
 ## Data Format
 Each data file in ./data/data_split is in json format, which contain a list of data instances. 
@@ -98,6 +84,14 @@ Each data file in ./data/data_split is in json format, which contain a list of d
     pip install -r requirements.txt
     python3 ./data/data_preprocessing.py
 ```
+### Predict
+
+To predict on your own data, feel free to download our checkpoits [here](https://drive.google.com/file/d/1UU1UVPpYypRh5dPUhQ8TreAJd-uoLEh7/view?usp=sharing), put it under `your_path_to/GLEN/`, and run:
+```sh
+unzip ckpts.zip
+bash scripts/predict_sentence.sh
+```
+
 
 ### Model Training
 
@@ -153,7 +147,11 @@ bash scripts/predict_type_classifier.sh 1 test_set
 # param2: the predicting data
 ```
 
-### Predict
+***
 
-To predict on your own data, use
-
+## Docker
+```sh
+docker pull qiusi/glen_sentence # pull the image
+docker run --gpus all -p 5000:5000 qiusi/glen_sentence # Start the GLEN server
+```
+TODO: docker for all cuda version

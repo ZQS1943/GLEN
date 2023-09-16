@@ -1,7 +1,7 @@
 import os
 import torch
 from collections import defaultdict
-from constants import roleset2id, SENT_TAG, EVENT_TAG, id2node_detail
+from model.constants import roleset2id, SENT_TAG, EVENT_TAG, id2node_detail
 from tqdm import tqdm
 
 def sort_mentions(
@@ -315,14 +315,32 @@ def create_TC_input(node, item, trigger, tokenizer, max_context_length):
     name, des, _ = id2node_detail[node]
     if des is None:
         des = ''
-    trigger_words = ' '.join(item['context']['tokens'][trigger[0]:trigger[1] + 1]).replace(' ##', '')
+    if 'context' in item:
+        tokens = item['context']['tokens']
+    else:
+        tokens = item['tokenized_tokens']
+
+    trigger_words = ' '.join(tokens[trigger[0]:trigger[1] + 1]).replace(' ##', '')
 
     prefix = prefix_template.replace('⟨type⟩', name).replace('⟨definition⟩', des)
     suffix = suffix_template.replace('⟨trigger⟩', trigger_words).replace('⟨type⟩', name)
     prefix_id = tokenizer.encode(prefix)
     suffix_id = tokenizer.encode(suffix)
 
-    input_ids = prefix_id + item['context']['original_input'] + suffix_id
+    if 'context' in item:
+        original_input = item['context']['original_input']
+    else:
+        original_input = item['original_tokenized_text_ids'][1:-1]
+    
+    if len(prefix_id) + len(original_input) + len(suffix_id) > max_context_length - 2:
+        max_original_len = max_context_length - 2 - len(prefix_id) - len(suffix_id)
+        window_size = (max_original_len - (trigger[1] - trigger[0] + 1))//2
+        l = max(0, trigger[0] - window_size)
+        r = min(len(original_input), trigger[1] + 1 + window_size)
+        original_input = original_input[l:r]
+        assert len(original_input) <= max_original_len
+
+    input_ids = prefix_id + original_input + suffix_id
     mask_token_id = len(input_ids)
     if len(input_ids) > max_context_length - 2:
         print(input_ids)

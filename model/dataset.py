@@ -1,16 +1,16 @@
 from torch.utils.data.dataset import Dataset
 import torch
-import torch.nn.functional as F
-import json
 
 from model.utils import padding_with_multiple_dim
 
-class TCdataset(Dataset):
+class SimpleDataset(Dataset):
     def __init__(self, dataset):
         self.data=dataset
 
     def __getitem__(self, index):
-        return self.data[index]
+        item = self.data[index]
+        item['index'] = index
+        return item
 
     def __len__(self):
         return len(self.data)
@@ -49,6 +49,28 @@ class TITRdataset(Dataset):
 
     def __len__(self):
         return len(self.data)     
+    
+
+def collate_fn_TI_sen(batch):
+    index = torch.tensor([x['index'] for x in batch], dtype=torch.long)
+    context_input = torch.tensor([x['tokenized_text_ids'] for x in batch], dtype=torch.long)
+
+    return (context_input, index)
+
+def collate_fn_TR_sen(batch):
+    index = torch.tensor([x['index'] for x in batch], dtype=torch.long)
+    context_input = torch.tensor([x['tokenized_text_ids'] for x in batch], dtype=torch.long)
+
+    return (context_input, index)
+
+
+def collate_fn_TC_sen(batch):
+    data_id = [x['id'] for x in batch]
+    event_idx = [x['event_idx'] for x in batch]
+    event_ids = [x['event_id'] for x in batch]
+    input_ids = torch.tensor([x['input_ids'] for x in batch], dtype=torch.long)
+    mask_token_mask = torch.tensor([x['mask_token_mask'] for x in batch], dtype=torch.bool)
+    return data_id,event_idx,event_ids,input_ids, mask_token_mask
 
 
 def collate_fn_TI(batch):

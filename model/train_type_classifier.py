@@ -11,7 +11,7 @@ from model.optimizer import get_optimizer
 from model.params import parse_arguments
 from model.utils import write_to_file, save_model
 from model.encoder import TypeClassifier
-from model.dataset import TCdataset, collate_fn_TC
+from model.dataset import SimpleDataset, collate_fn_TC
 from model.data_process import process_data_TC_train
 
 def training(params):
@@ -44,7 +44,7 @@ def training(params):
     grad_acc_steps = params["gradient_accumulation_steps"]
     train_batch_size = params["train_batch_size"] // grad_acc_steps
 
-    train_set = TCdataset(processed_train_samples)
+    train_set = SimpleDataset(processed_train_samples)
     train_dataloader = DataLoader(train_set, batch_size=train_batch_size, shuffle=False, collate_fn=collate_fn_TC)
     
 

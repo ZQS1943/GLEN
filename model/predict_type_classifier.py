@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from model.encoder import TypeClassifier
 from model.params import parse_arguments
-from model.dataset import TCdataset, collate_fn_TC
+from model.dataset import SimpleDataset, collate_fn_TC
 from model.data_process import process_data_TC_predict_for_train, process_data_TC_predict
 from model.utils import evaluate_final_score, hit_k
 
@@ -108,7 +108,7 @@ if __name__ == "__main__":
         with open(params['TC_train_data_path'], 'r') as f:
             train_samples = json.load(f)
         processed_samples = process_data_TC_predict_for_train(params, train_samples, tokenizer)
-        predict_set = TCdataset(processed_samples)
+        predict_set = SimpleDataset(processed_samples)
         predict_dataloder = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TC)
         output_path = os.path.join(params['output_path'],"train_data_for_TC.json")
         predict_train_set(type_classifier, predict_dataloder, device, params, output_path, train_samples)
@@ -117,7 +117,7 @@ if __name__ == "__main__":
             predict_samples = json.load(f)
             predict_samples = predict_samples[:10]
         processed_samples = process_data_TC_predict(params, predict_samples, tokenizer, eval_on_gold=False)
-        predict_set = TCdataset(processed_samples)
+        predict_set = SimpleDataset(processed_samples)
         predict_dataloder = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TC)
         output_path = os.path.join(params['output_path'],"TI_TR_TC_result.jsonl")
         predict_samples = evaluate(type_classifier, predict_samples, predict_dataloder, device, params, output_path, eval_on_gold=False)

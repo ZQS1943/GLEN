@@ -20,6 +20,12 @@ def define_arguments(parser):
         help="The full path to the model to load(only in prediction mode).",
     )
     parser.add_argument(
+        "--path_to_ckpt",
+        default=None,
+        type=str,
+        help="The full path to the dir of the downloaded checkpoints.",
+    )
+    parser.add_argument(
         "--bert_model",
         default="bert-base-uncased",
         type=str,
@@ -35,7 +41,6 @@ def define_arguments(parser):
         "--output_path",
         default=None,
         type=str,
-        required=True,
         help="The output directory where generated output file (model, etc.) is to be dumped.",
     )
     parser.add_argument(
@@ -69,6 +74,18 @@ def define_arguments(parser):
     parser.add_argument(
         "--eval_batch_size", default=8, type=int,
         help="Total batch size for evaluation.",
+    )
+    parser.add_argument(
+        "--bs_TI", default=64, type=int, 
+        help="Batch size for sentence prediction of trigger identificaiton."
+    )
+    parser.add_argument(
+        "--bs_TR", default=4, type=int, 
+        help="Batch size for sentence prediction of trigger ranking."
+    )
+    parser.add_argument(
+        "--bs_TC", default=64, type=int, 
+        help="Batch size for sentence prediction of trigger classification."
     )
     parser.add_argument(
         "--max_grad_norm", 

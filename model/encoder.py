@@ -535,6 +535,9 @@ class TypeClassifier(torch.nn.Module):
         # init model
         self.model = BertForMaskedLM.from_pretrained(params["bert_model"])
         model_path = params.get("path_to_model", None)
+        ckpt_path = params.get("path_to_ckpt", None)
+        if ckpt_path is not None:
+            model_path = os.path.join(ckpt_path, "type_classifier.bin")
         if model_path is not None:
             print(f'load model from {model_path} ...')
             self.load_state_dict(torch.load(model_path))
@@ -570,6 +573,9 @@ class TriggerIdentifier(torch.nn.Module):
         # init model
         self.build_model()
         model_path = params.get("path_to_model", None)
+        ckpt_path = params.get("path_to_ckpt", None)
+        if ckpt_path is not None:
+            model_path = os.path.join(ckpt_path, "trigger_identifier.bin")
         if model_path is not None:
             print(f'load model from {model_path} ...')
             self.load_state_dict(torch.load(model_path))
@@ -726,11 +732,16 @@ class TypeRanking(torch.nn.Module):
         )
         # init model
         self.model = BertModel.from_pretrained(params["bert_model"])
-        model_path = params.get("path_to_model", None)
         self.linear = nn.Linear(params['hidden_size'], params['linear_dim'], bias=False)
+        model_path = params.get("path_to_model", None)
+        ckpt_path = params.get("path_to_ckpt", None)
+        if ckpt_path is not None:
+            model_path = os.path.join(ckpt_path, "type_ranking.bin")
         if model_path is not None:
             print(f'load model from {model_path} ...')
             self.load_state_dict(torch.load(model_path))
+
+        
 
         self.model = self.model.to(self.device)
         self.linear = self.linear.to(self.device)
