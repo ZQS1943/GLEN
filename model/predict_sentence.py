@@ -31,17 +31,25 @@ def sentence_tokenization(sentence_list, tokenizer, max_length=512):
         })
     return data
 
-
-
-def predict(sentence_list, params):
+def setup(params):
     tokenizer = BertTokenizerFast.from_pretrained(params['bert_model'])
-    predict_samples = sentence_tokenization(sentence_list, tokenizer, max_length=512)
     device = "cuda"
+    
+    trigger_identifier = TriggerIdentifier(params).to(device).eval()
+    type_ranking = TypeRanking(params).to(device).eval()
+    type_classifier = TypeClassifier(params, device).to(device).eval()
+    
+    cand_encs, used_cand = encode_all_candidates(params, type_ranking, device, only_used_xpo=True)
+
+    return tokenizer, trigger_identifier, type_ranking, type_classifier, device, cand_encs, used_cand
+
+
+def predict(sentence_list, params, tokenizer, trigger_identifier, type_ranking, type_classifier, device, cand_encs, used_cand):
+    predict_samples = sentence_tokenization(sentence_list, tokenizer, max_length=512)
 
     # trigger identification
     predict_set = SimpleDataset(predict_samples)
     TI_dataloader = DataLoader(predict_set, batch_size=params['bs_TI'], shuffle=False, collate_fn=collate_fn_TI_sen)
-    trigger_identifier = TriggerIdentifier(params).to(device).eval()
 
     with torch.no_grad():
         for batch in tqdm(TI_dataloader, desc="Trigger Identificaiton"):
@@ -64,10 +72,9 @@ def predict(sentence_list, params):
                 
 
     # type ranking
-    type_ranking = TypeRanking(params).to(device).eval()
     TR_dataloader = DataLoader(predict_set, batch_size=params['bs_TR'], shuffle=False, collate_fn=collate_fn_TR_sen)
-    cand_encs, used_cand = encode_all_candidates(params, type_ranking, device, only_used_xpo=True)
-    k = params['k']
+    
+    
     with torch.no_grad():
         for batch in tqdm(TR_dataloader, desc='Type Ranking'):
             context_vecs, data_index = batch
@@ -77,7 +84,7 @@ def predict(sentence_list, params):
                 cand_encs=cand_encs,
             )
             
-            top_k = torch.topk(logits, k, dim=1)
+            top_k = torch.topk(logits, params['k'], dim=1)
             converted_indices = used_cand[top_k.indices]
             for idx, indices in zip(data_index, converted_indices):
                 predict_set.data[idx][f'top_events'] = indices.tolist()
@@ -86,7 +93,7 @@ def predict(sentence_list, params):
     predicted_items = predict_set.data
     for i in range(len(predicted_items)):
         predicted_items[i]['TC_scores'] = [{} for _ in predicted_items[i]['predicted_triggers']]
-    type_classifier = TypeClassifier(params, device).to(device).eval()
+    
     processed_samples = process_data_TC_predict(params, predicted_items, tokenizer, eval_on_gold=False)
     predict_set = SimpleDataset(processed_samples)
     tc_dataloder = DataLoader(predict_set, batch_size=params['bs_TC'], shuffle=False, collate_fn=collate_fn_TC_sen)
@@ -134,9 +141,12 @@ def predict(sentence_list, params):
 
 if __name__ == '__main__':
     params = parse_arguments()
+    tokenizer, trigger_identifier, type_ranking, type_classifier, device, cand_encs, used_cand = setup(params)
+    
+    
     sen_list = ['One Air Force technician died and 21 others were injured .']
     print(f"start predicting {len(sen_list)} sentence")
-    print(predict(sen_list, params))
+    print(predict(sen_list, params, tokenizer, trigger_identifier, type_ranking, type_classifier, device, cand_encs, used_cand))
 
 
 
