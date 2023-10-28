@@ -1,4 +1,4 @@
-from data.data_preprocessing import read_xpo
+from data.data_prepare.data_preprocessing import read_xpo
 from collections import defaultdict
 SENT_TAG = "[unused0]"
 EVENT_TAG = "[unused1]"
