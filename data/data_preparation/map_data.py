@@ -1,6 +1,6 @@
 import json
 import os
-from data.data_prepare.utils import read_amr, read_ontonotes
+from data.data_preparation.utils import read_amr, read_ontonotes
 from tqdm import tqdm
 from collections import defaultdict
 import pickle as pkl
