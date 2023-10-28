@@ -95,6 +95,14 @@ And here is an example of an annotated test instance:
     pip install -r requirements.txt
 ```
 
+### Predict
+
+To predict on your own data, download our [checkpoits](https://drive.google.com/file/d/1UU1UVPpYypRh5dPUhQ8TreAJd-uoLEh7/view?usp=sharing), place it under `your_path_to/GLEN/`, and execute the example commands provided:
+```sh
+unzip ckpts.zip
+bash scripts/predict_sentence.sh
+```
+
 ### Data Preparation
 Download [AMR](https://catalog.ldc.upenn.edu/LDC2020T02) and [OntoNotes](https://catalog.ldc.upenn.edu/LDC2013T19) and place them under `your_path_to/GLEN/data/source_data/`. Ensure the following directory structure:
 ```sh
@@ -113,13 +121,7 @@ export PYTHONPATH=./
 python3 data/data_preparation/map_data.py
 python3 data/data_preparation/data_preprocessing.py
 ```
-### Predict
 
-To predict on your own data, download our [checkpoits](https://drive.google.com/file/d/1UU1UVPpYypRh5dPUhQ8TreAJd-uoLEh7/view?usp=sharing), place it under `your_path_to/GLEN/`, and run:
-```sh
-unzip ckpts.zip
-bash scripts/predict_sentence.sh
-```
 
 
 ### Model Training
