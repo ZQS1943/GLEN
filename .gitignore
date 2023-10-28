@@ -11,8 +11,8 @@ ckpts*
 data/source_data/LDC2019E81_Abstract_Meaning_Representation_AMR_Annotation_Release_3.0
 data/source_data/ontonotes-release-5.0
 data/draw_figure
-data/data_split/test_annontated.json
-data/data_split/dev_annontated.json
+data/data_split/test_annotated.json
+data/data_split/dev_annotated.json
 data/data_split/train.json
 *.pickle
 *.zip

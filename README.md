@@ -122,8 +122,6 @@ python3 data/data_preparation/map_data.py
 python3 data/data_preparation/data_preprocessing.py
 ```
 
-
-
 ### Model Training
 
 Our model consists of three components: Trigger Identification, Type Ranking, and Type Classification. To train these models, use the provided scripts:

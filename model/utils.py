@@ -193,7 +193,7 @@ def evaluate_final_score(predict_samples, params, eval_on_gold = False):
         else:
             trigger_iter = enumerate(item['predicted_triggers'])
         for event_id, predicted_trigger in trigger_iter:
-            predicted_types = sorted(item['TC_results'][str(event_id)], key=lambda x:x[0], reverse=True)
+            predicted_types = sorted(item['TC_results'][event_id], key=lambda x:x[0], reverse=True)
             node_to_prob = {node:prob for prob, node in predicted_types}
             top_1_node = predicted_types[0][1]
             for node in node_relation[top_1_node]['parents']:
@@ -236,8 +236,6 @@ def evaluate_final_score(predict_samples, params, eval_on_gold = False):
         test_results.append(tmp_item)
 
     scores = {}
-    print(num_TD_correct, num_TD_gold, num_TD_predict)
-    print(num_TC_correct, num_TC_gold, num_TC_predict)
     scores['num_TI_correct'] = num_TD_correct
     scores['num_TI_gold'] = num_TD_gold
     scores['num_TI_predict'] = num_TD_predict
@@ -271,8 +269,6 @@ def hit_k(predict_samples, eval_on_gold = False):
         else:
             trigger_iter = enumerate(item['predicted_triggers'])
         for event_id, predicted_trigger in trigger_iter:
-            print(item['TC_results'])
-            print(event_id, type(event_id))
             predicted_types = sorted(item['TC_results'][int(event_id)], key=lambda x:x[0], reverse=True)
             for gold_trigger, gold_type in gold_results:
                 if gold_trigger == predicted_trigger:

@@ -81,7 +81,7 @@ if __name__ == "__main__":
         predict_set = TITRdataset(predict_samples, with_sent_tag=True, only_sen_w_events=True)
         predict_samples = predict_set.data
         predict_dataloader = DataLoader(predict_set, batch_size=eval_batch_size, shuffle=False, collate_fn=collate_fn_TR_Predict)
-        type_classification_results = predict_top_k(output_file, type_ranking, device, predict_dataloader, cand_encs, predict_samples, used_cand, k = params['k'])
+        type_classification_results = predict_top_k(output_file, type_ranking, device, predict_dataloader, cand_encs, predict_samples, used_cand, predict_k = params['k'])
 
     elif params['predict_set'] == 'test_set':
         with open('./exp/trigger_identifier/epoch_4/TI_result.json', 'r') as f:
