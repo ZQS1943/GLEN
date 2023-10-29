@@ -24,7 +24,7 @@
 ## What's New
 
 * **[Next]** We are currently working on the Python package for our model, CEDAR.
-* **[10/27/2023]** The code has been released.
+* **[10/28/2023]** The code has been released.
 
 ## Data Format
 Each data file in `./data/data_split` is in JSON format and contains a list of data instances. Below is an example of a training instance:
