@@ -97,7 +97,7 @@ And here is an example of an annotated test instance:
 
 ### Predict
 
-To predict on your own data, download our [checkpoits](https://drive.google.com/file/d/1UU1UVPpYypRh5dPUhQ8TreAJd-uoLEh7/view?usp=sharing), place it under `your_path_to/GLEN/`, and execute the example commands provided:
+To predict on your own data, download our [checkpoints](https://drive.google.com/file/d/1UU1UVPpYypRh5dPUhQ8TreAJd-uoLEh7/view?usp=sharing), place it under `your_path_to/GLEN/`, and execute the example commands provided:
 ```sh
 unzip ckpts.zip
 bash scripts/predict_sentence.sh
