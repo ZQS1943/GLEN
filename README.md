@@ -21,10 +21,81 @@
   </a>
 </p>
 
+GLEN covers 205K event mentions with 3,465 different types, making it more than 20x larger in ontology than today's largest event dataset. We also introduce CEDAR, a multi-stage event detection model designed for GLEN's large ontology. 
+
+- [GLEN: General-Purpose Event Detection](#glen-general-purpose-event-detection)
+- [What's New](#whats-new)
+- [Quick Start with Python Package](#quick-start-with-python-package)
+- [Data Format](#data-format)
+- [Reproduction](#reproduction)
+  - [Setup](#setup)
+  - [Predict](#predict)
+  - [Data Preparation](#data-preparation)
+  - [Model Training](#model-training)
+  - [Evaluate](#evaluate)
+- [Docker](#docker)
+
+
 ## What's New
 
-* **[Next]** We are currently working on the Python package for our model, CEDAR.
+* **[11/01/2023]** The python [package](https://pypi.org/project/glen/) has been released.
+* **[10/31/2023]** The [paper](https://arxiv.org/pdf/2303.09093.pdf) has been updated.
 * **[10/28/2023]** The code has been released.
+
+## Quick Start with Python Package
+To swiftly utilize our model, install our Python package using the following command:
+```sh
+pip install glen
+```
+Afterwards, download the model [checkpoints](https://drive.google.com/file/d/1UU1UVPpYypRh5dPUhQ8TreAJd-uoLEh7/view?usp=sharing) and unzip them on your local machine.
+Below is an example code snippet that demonstrates how to use glen for event detection:
+```python
+from glen import event_detection
+
+# Create a list of sentences you wish to analyze
+sentence_list = ['One Air Force technician died and 21 others were injured.']
+
+# Run event detection
+result = event_detection(sentence_list, 'your_path_to/ckpts', bs_TI=64, bs_TC=64, bs_TR=4, k=10)
+
+# Output the result
+print(result)
+``` 
+- Parameters:
+  - `bs_TI`, `bs_TC`, and `bs_TR`: Adjust these batch sizes for different modules based on the available memory of your computational device.
+  - `k`: Specifies the number of candidate types considered by the type classifier.
+
+The output will be presented as a list of JSON-formatted event detection results for each sentence. For example, the output for the above code snippet will appear as follows:
+```yaml
+[{
+  'sen_id': 0, 
+  'sentence': 'One Air Force technician died and 21 others were injured.', 
+  'predicted_mentions': [
+    {
+      'sentence_offset': [25, 29], 
+      'trigger_words': 'died', 
+      'trigger_confidence': 0.9814410209655762, 'event_type': {
+        'xpo_node': 'DWD_Q267505', 
+        'name': 'dying', 
+        'description': 'final process of life'
+      }, 
+      'event_confidence': 0.8992632031440735
+    }, 
+    {
+      'sentence_offset': [49, 56], 
+      'trigger_words': 'injured', 
+      'trigger_confidence': 0.9866828918457031, 
+      'event_type': {
+        'xpo_node': 'DWD_Q1064904', 
+        'name': 'major_trauma', 
+        'description': 'injury that could cause prolonged disability or death'
+      }, 
+      'event_confidence': 0.8462748527526855
+    }
+  ]
+}]
+```
+
 
 ## Data Format
 Each data file in `./data/data_split` is in JSON format and contains a list of data instances. Below is an example of a training instance:
